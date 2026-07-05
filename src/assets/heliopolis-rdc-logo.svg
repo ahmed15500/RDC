@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 700" role="img" aria-labelledby="title desc">
+  <title id="title">Heliopolis University for Sustainable Development Rural Development Center</title>
+  <desc id="desc">A local SVG recreation of the supplied Heliopolis University RDC logo for use in the dashboard.</desc>
+  <rect width="820" height="700" fill="transparent"/>
+  <g transform="translate(60 0)">
+    <path d="M335 0 L420 180 L360 450 Z" fill="#f7bc28"/>
+    <path d="M0 170 L285 220 L350 450 Z" fill="#e6007e"/>
+    <path d="M445 215 C510 245 625 175 735 125 L505 345 L350 450 Z" fill="#ff8500"/>
+  </g>
+  <g fill="#242b78" font-family="Montserrat, Trebuchet MS, Arial, sans-serif" text-anchor="middle">
+    <text x="410" y="535" font-size="74" font-weight="800">Heliopolis University</text>
+    <text x="410" y="620" font-size="50" font-weight="500">for Sustainable Development</text>
+    <rect x="70" y="648" width="680" height="4"/>
+    <text x="410" y="690" font-size="48" font-weight="800">Rural Development Center</text>
+  </g>
+</svg>
