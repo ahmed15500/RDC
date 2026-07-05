@@ -35,6 +35,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: https://nxbakauhojxgavjnpsia.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_aYaJtX2b-RrDODRJnQr_6Q_nkNmKE9R
+          VITE_BASE_PATH: /RDC/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
