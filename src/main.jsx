@@ -979,7 +979,13 @@ function SubmissionForm({ onSubmit, initial, role }) {
     }
     setSubmitting(true);
     try {
-      await onSubmit(form);
+      await onSubmit({
+        ...form,
+        ecologyDescription: form.pillars.includes("Ecology") ? form.ecologyDescription : "",
+        societyDescription: form.pillars.includes("Society") ? form.societyDescription : "",
+        cultureDescription: form.pillars.includes("Culture") ? form.cultureDescription : "",
+        economyDescription: form.pillars.includes("Economy") ? form.economyDescription : "",
+      });
       if (!initial) setForm(blankSubmission);
     } catch (error) {
       setSubmitError(error.message);
@@ -1036,10 +1042,11 @@ function SubmissionForm({ onSubmit, initial, role }) {
       </FormSection>
       <FormSection title="C. Sustainability Pillars">
         <CheckboxGroup values={PILLARS} selected={form.pillars} onToggle={(value) => toggleList("pillars", value)} />
-        <TextArea label="Ecology impact description" helper="Waste reduction, recycling, composting, environmental awareness, climate action, sustainable agriculture, natural resource protection." value={form.ecologyDescription} onChange={(v) => update("ecologyDescription", v)} />
-        <TextArea label="Society impact description" helper="Health access, education, inclusion, community participation, women empowerment, youth development, quality of life." value={form.societyDescription} onChange={(v) => update("societyDescription", v)} />
-        <TextArea label="Culture impact description" helper="Arts, storytelling, local identity, school culture, community learning, traditional knowledge, awareness through creative methods." value={form.cultureDescription} onChange={(v) => update("cultureDescription", v)} />
-        <TextArea label="Economy impact description" helper="Income generation, employability, skills development, micro-enterprises, local production, cost-saving solutions." value={form.economyDescription} onChange={(v) => update("economyDescription", v)} />
+        {!form.pillars.length && <div className="metric-intro span-2"><strong>Select one or more pillars</strong><p>The impact explanation fields will appear only for the selected pillars.</p></div>}
+        {form.pillars.includes("Ecology") && <TextArea label="Ecology impact description" helper="Waste reduction, recycling, composting, environmental awareness, climate action, sustainable agriculture, natural resource protection." value={form.ecologyDescription} onChange={(v) => update("ecologyDescription", v)} />}
+        {form.pillars.includes("Society") && <TextArea label="Society impact description" helper="Health access, education, inclusion, community participation, women empowerment, youth development, quality of life." value={form.societyDescription} onChange={(v) => update("societyDescription", v)} />}
+        {form.pillars.includes("Culture") && <TextArea label="Culture impact description" helper="Arts, storytelling, local identity, school culture, community learning, traditional knowledge, awareness through creative methods." value={form.cultureDescription} onChange={(v) => update("cultureDescription", v)} />}
+        {form.pillars.includes("Economy") && <TextArea label="Economy impact description" helper="Income generation, employability, skills development, micro-enterprises, local production, cost-saving solutions." value={form.economyDescription} onChange={(v) => update("economyDescription", v)} />}
       </FormSection>
       <FormSection title="D. SDG Mapping"><CheckboxGroup values={SDGS.map((s) => `${s.number}: ${s.name}`)} selected={form.sdgs.map(String)} onToggle={(value) => toggleList("sdgs", value.split(":")[0])} /><Field label="Other SDG" value={form.otherSdg} onChange={(v) => update("otherSdg", v)} /></FormSection>
       <FormSection title="E. Qualitative Impact">{["keyOutcome:Key outcome", "success:Most important success", "challenge:Main challenge", "lessonsLearned:Lessons learned", "testimonial:Human story / testimonial", "beneficiaryQuote:Quote from beneficiary", "beforeAfter:Before and after change", "futureOpportunity:Future opportunity", "supportNeeded:Support needed for scaling"].map((entry) => { const [key, label] = entry.split(":"); return <TextArea key={key} label={label} value={form[key]} onChange={(v) => update(key, v)} />; })}</FormSection>
