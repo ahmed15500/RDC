@@ -59,6 +59,67 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, email, name, department, role)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data ->> 'name', ''),
+    coalesce(new.raw_user_meta_data ->> 'department', ''),
+    case
+      when lower(new.email) = 'ahmed.bahrawy@hu.edu.eg' then 'admin'
+      else 'viewer'
+    end
+  )
+  on conflict (id) do update
+  set
+    email = excluded.email,
+    name = coalesce(nullif(excluded.name, ''), profiles.name),
+    department = coalesce(nullif(excluded.department, ''), profiles.department),
+    role = case
+      when lower(excluded.email) = 'ahmed.bahrawy@hu.edu.eg' then 'admin'
+      else profiles.role
+    end,
+    updated_at = now();
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+insert into public.profiles (id, email, name, department, role)
+select
+  id,
+  email,
+  coalesce(raw_user_meta_data ->> 'name', ''),
+  coalesce(raw_user_meta_data ->> 'department', ''),
+  case
+    when lower(email) = 'ahmed.bahrawy@hu.edu.eg' then 'admin'
+    else 'viewer'
+  end
+from auth.users
+on conflict (id) do update
+set
+  email = excluded.email,
+  name = coalesce(nullif(excluded.name, ''), profiles.name),
+  department = coalesce(nullif(excluded.department, ''), profiles.department),
+  role = case
+    when lower(excluded.email) = 'ahmed.bahrawy@hu.edu.eg' then 'admin'
+    else profiles.role
+  end,
+  updated_at = now();
+
 alter table public.profiles enable row level security;
 alter table public.activities enable row level security;
 
