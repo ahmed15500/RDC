@@ -633,7 +633,7 @@ function App() {
           />
         )}
         {activeView === "users" && role === "Admin" && <UserManagement profiles={profiles} onRoleChange={handlePromoteUser} onRefresh={refreshProfiles} />}
-        {activeView === "users" && role !== "Admin" && <article className="panel"><h3>Admin only</h3><p className="summary-text">Only Ahmed Bahrawy can manage user permissions.</p></article>}
+        {activeView === "users" && role !== "Admin" && <article className="panel"><h3>Admin only</h3><p className="summary-text">Only the RDC admin can manage user permissions.</p></article>}
       </main>
     </div>
   );
@@ -684,7 +684,7 @@ function SupabaseLoginPage({ onLogin, message }) {
         <h1>RDC Impact Data Platform</h1>
         <p>Collect, validate, summarize, and visualize the full social transformation impact of RDC's 13-village model.</p>
         <div className="auth-info invitation-only">
-          Accounts are invitation-only. Ahmed Bahrawy adds approved users from Supabase Authentication, then promotes them inside the Users tab when data entry access is needed.
+          Accounts are invitation-only. The RDC admin adds approved users from Supabase Authentication, then promotes them inside the Users tab when data entry access is needed.
         </div>
         <label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" autoComplete="email" /></label>
         <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" autoComplete="current-password" /></label>
@@ -725,7 +725,7 @@ function RoleNotice({ role }) {
   const text = {
     Admin: "Admin access: view, validate, edit, delete, export, and analyze all submitted data.",
     "Stakeholder / Project Officer": "Stakeholder access: submit RDC activity data after Admin approval.",
-    Viewer: "Viewer access: dashboard and report viewing only. Ahmed Bahrawy can promote Viewers to Stakeholder.",
+    Viewer: "Viewer access: dashboard and report viewing only. The RDC admin can promote Viewers to Stakeholder.",
   }[role];
   return <div className="role-notice"><ShieldCheck size={16} />{text}</div>;
 }
@@ -1303,7 +1303,7 @@ function SubmissionForm({ onSubmit, initial, role }) {
     return (
       <article className="panel">
         <h3>Data submission requires approval</h3>
-        <p className="summary-text">Your account is currently Viewer. You can view dashboards and reports, but Ahmed Bahrawy must promote your account to Stakeholder / Project Officer before you can submit RDC activity data.</p>
+        <p className="summary-text">Your account is currently Viewer. You can view dashboards and reports, but the RDC admin must promote your account to Stakeholder / Project Officer before you can submit RDC activity data.</p>
       </article>
     );
   }
