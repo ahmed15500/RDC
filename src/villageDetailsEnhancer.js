@@ -34,7 +34,9 @@ const keyMetrics = [
   ["Waste recycled kg", (rows) => sum(rows, "wasteRecycledKg")],
   ["Waste composted kg", (rows) => sum(rows, "wasteCompostedKg")],
   ["Trees / plants", (rows) => sum(rows, "treesPlanted")],
+  ["Income generated", (rows) => sum(rows, "incomeGenerated")],
   ["Jobs created", (rows) => sum(rows, "jobsCreated")],
+  ["Products sold", (rows) => sum(rows, "productsSold")],
 ];
 
 const css = `
@@ -75,9 +77,7 @@ const css = `
     backdrop-filter: blur(10px);
   }
 
-  .village-modal-backdrop[hidden] {
-    display: none;
-  }
+  .village-modal-backdrop[hidden] { display: none; }
 
   .village-modal-panel {
     width: min(1180px, 96vw);
@@ -114,10 +114,7 @@ const css = `
     letter-spacing: -0.04em;
   }
 
-  .village-modal-header p {
-    margin: 5px 0 0;
-    color: var(--muted);
-  }
+  .village-modal-header p { margin: 5px 0 0; color: var(--muted); }
 
   .village-modal-close {
     width: 42px;
@@ -132,17 +129,8 @@ const css = `
     line-height: 1;
   }
 
-  .village-detail-body {
-    display: grid;
-    gap: 18px;
-    padding: 22px 24px 26px;
-  }
-
-  .village-detail-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
-  }
+  .village-detail-body { display: grid; gap: 18px; padding: 22px 24px 26px; }
+  .village-detail-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 
   .village-detail-metric,
   .village-detail-section {
@@ -152,39 +140,18 @@ const css = `
     box-shadow: 0 16px 40px rgba(20, 30, 84, 0.08);
   }
 
-  .village-detail-metric {
-    padding: 16px;
-  }
-
+  .village-detail-metric { padding: 16px; }
   .village-detail-metric strong {
     display: block;
     color: var(--navy);
     font-family: "Space Grotesk", sans-serif;
     font-size: 1.55rem;
   }
+  .village-detail-metric span { color: var(--muted); font-size: 0.84rem; font-weight: 700; }
+  .village-detail-section { padding: 18px; }
+  .village-detail-section h3 { margin: 0 0 12px; color: var(--navy); font-family: "Space Grotesk", sans-serif; }
 
-  .village-detail-metric span {
-    color: var(--muted);
-    font-size: 0.84rem;
-    font-weight: 700;
-  }
-
-  .village-detail-section {
-    padding: 18px;
-  }
-
-  .village-detail-section h3 {
-    margin: 0 0 12px;
-    color: var(--navy);
-    font-family: "Space Grotesk", sans-serif;
-  }
-
-  .village-chip-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
+  .village-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
   .village-chip-row span,
   .village-chip-row a {
     padding: 7px 10px;
@@ -196,44 +163,13 @@ const css = `
     text-decoration: none;
   }
 
-  .village-two-col {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 18px;
-  }
-
-  .village-bullet-list {
-    display: grid;
-    gap: 9px;
-    margin: 0;
-    padding-left: 20px;
-    color: var(--ink);
-  }
-
-  .village-activity-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 860px;
-  }
-
+  .village-two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .village-bullet-list { display: grid; gap: 9px; margin: 0; padding-left: 20px; color: var(--ink); }
+  .village-activity-table { width: 100%; border-collapse: collapse; min-width: 860px; }
   .village-activity-table th,
-  .village-activity-table td {
-    padding: 12px;
-    border-bottom: 1px solid rgba(36, 43, 120, 0.09);
-    text-align: left;
-    vertical-align: top;
-  }
-
-  .village-activity-table th {
-    color: var(--navy);
-    font-size: 0.82rem;
-  }
-
-  .village-activity-table small {
-    display: block;
-    margin-top: 3px;
-    color: var(--muted);
-  }
+  .village-activity-table td { padding: 12px; border-bottom: 1px solid rgba(36, 43, 120, 0.09); text-align: left; vertical-align: top; }
+  .village-activity-table th { color: var(--navy); font-size: 0.82rem; }
+  .village-activity-table small { display: block; margin-top: 3px; color: var(--muted); }
 
   .village-status-pill {
     display: inline-flex;
@@ -245,24 +181,21 @@ const css = `
     font-weight: 800;
   }
 
-  .village-detail-empty {
+  .village-detail-empty,
+  .village-detail-note {
     padding: 18px;
     color: var(--muted);
     border: 1px dashed rgba(36, 43, 120, 0.18);
     border-radius: 18px;
     background: rgba(255, 255, 255, 0.75);
+    line-height: 1.6;
   }
+  .village-detail-note strong { color: var(--navy); }
 
   @media (max-width: 900px) {
     .village-detail-grid,
-    .village-two-col {
-      grid-template-columns: 1fr;
-    }
-
-    .village-modal-panel {
-      width: 100%;
-      max-height: 92vh;
-    }
+    .village-two-col { grid-template-columns: 1fr; }
+    .village-modal-panel { width: 100%; max-height: 92vh; }
   }
 `;
 
@@ -278,6 +211,11 @@ function formatNumber(value) {
   return new Intl.NumberFormat("en-US").format(Math.round(Number(value || 0)));
 }
 
+function parseNumber(value) {
+  const cleaned = String(value || "").replace(/[^0-9.-]/g, "");
+  return Number(cleaned || 0);
+}
+
 function sum(rows, key) {
   return rows.reduce((total, activity) => total + Number(activity.metrics?.[key] || 0), 0);
 }
@@ -288,6 +226,26 @@ function sumBeneficiaries(rows) {
 
 function unique(values) {
   return [...new Set(values.flat().filter(Boolean))];
+}
+
+function splitList(value) {
+  return String(value || "")
+    .split(/,|;|\||·/)
+    .map((item) => item.trim())
+    .filter((item) => item && !["none", "pending field data", "no projects recorded"].includes(item.toLowerCase()));
+}
+
+function normalizeVillage(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/el\s*-/g, "el")
+    .replace(/[^a-z0-9\u0600-\u06ff]/g, "");
+}
+
+function villageMatches(target, candidate) {
+  const targetKey = normalizeVillage(target);
+  const candidateKey = normalizeVillage(candidate);
+  return candidateKey === targetKey || candidateKey.includes(targetKey) || targetKey.includes(candidateKey);
 }
 
 function escapeHtml(value) {
@@ -369,7 +327,11 @@ function renderLoading(village) {
   modalContent.innerHTML = `<div class="village-detail-empty">Loading details from Supabase...</div>`;
 }
 
-function renderError(village, error) {
+function renderError(village, error, snapshot) {
+  if (snapshot) {
+    renderSummaryFallback(village, snapshot, `Supabase details could not be loaded: ${error.message || "Unknown error"}`);
+    return;
+  }
   modalTitle.textContent = village;
   modalSubtitle.textContent = "Village details could not be loaded.";
   modalContent.innerHTML = `<div class="village-detail-empty">${escapeHtml(error.message || "Unknown error")}</div>`;
@@ -396,7 +358,6 @@ function renderDetails(village, rows) {
     <div class="village-detail-grid">
       ${metrics.map(([label, value]) => `<div class="village-detail-metric"><strong>${formatNumber(value)}</strong><span>${escapeHtml(label)}</span></div>`).join("")}
     </div>
-
     <div class="village-two-col">
       ${renderChipSection("Projects", projects)}
       ${renderChipSection("Activity types", activityTypes)}
@@ -405,42 +366,53 @@ function renderDetails(village, rows) {
       ${renderChipSection("SDG links", sdgs)}
       ${renderEvidenceSection(evidence)}
     </div>
-
     <div class="village-two-col">
       ${renderListSection("Main outcomes", outcomes, "No outcomes recorded yet.")}
       ${renderListSection("Future opportunities", opportunities, "No future opportunities recorded yet.")}
     </div>
-
     ${challenges.length ? renderListSection("Challenges", challenges, "") : ""}
-
     <section class="village-detail-section">
       <h3>Activities in this village</h3>
       <div class="table-wrap">
         <table class="village-activity-table">
-          <thead>
-            <tr>
-              <th>Activity</th>
-              <th>Project / type</th>
-              <th>Date</th>
-              <th>Target group</th>
-              <th>Beneficiaries</th>
-              <th>Status</th>
-              <th>Outcome</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows.map(renderActivityRow).join("")}
-          </tbody>
+          <thead><tr><th>Activity</th><th>Project / type</th><th>Date</th><th>Target group</th><th>Beneficiaries</th><th>Status</th><th>Outcome</th></tr></thead>
+          <tbody>${rows.map(renderActivityRow).join("")}</tbody>
         </table>
       </div>
     </section>
   `;
 }
 
+function renderSummaryFallback(village, snapshot, reason = "No individual Supabase activity rows matched this village yet.") {
+  const metrics = [
+    ["Activities", snapshot.activities],
+    ["Total beneficiaries", snapshot.beneficiaries],
+    ["Pillars", snapshot.pillarCount || snapshot.pillars.length],
+    ["SDGs", snapshot.sdgCount || snapshot.sdgs.length],
+  ].filter(([, value]) => Number(value) > 0);
+
+  modalTitle.textContent = village;
+  modalSubtitle.textContent = `${formatNumber(snapshot.activities)} activities · ${formatNumber(snapshot.beneficiaries)} beneficiaries · dashboard summary view`;
+  modalContent.innerHTML = `
+    <div class="village-detail-note"><strong>Dashboard summary fallback:</strong> ${escapeHtml(reason)} The details below are taken from the visible Village Dashboard summary so the card never opens empty.</div>
+    <div class="village-detail-grid">
+      ${metrics.map(([label, value]) => `<div class="village-detail-metric"><strong>${formatNumber(value)}</strong><span>${escapeHtml(label)}</span></div>`).join("")}
+    </div>
+    <div class="village-two-col">
+      ${renderChipSection("Projects", snapshot.projects)}
+      ${renderChipSection("Sustainability pillars", snapshot.pillars)}
+      ${renderChipSection("SDG links", snapshot.sdgs)}
+      ${renderListSection("Main outcomes", snapshot.outcomes, "Pending field data")}
+    </div>
+    <section class="village-detail-section">
+      <h3>Activity records</h3>
+      <div class="village-detail-empty">The village card has summary totals, but the individual activities table needs Supabase rows where the village field contains ${escapeHtml(village)}.</div>
+    </section>
+  `;
+}
+
 function renderChipSection(title, items) {
-  const content = items.length
-    ? items.map((item) => `<span>${escapeHtml(item)}</span>`).join("")
-    : `<span>Not recorded</span>`;
+  const content = items.length ? items.map((item) => `<span>${escapeHtml(item)}</span>`).join("") : `<span>Not recorded</span>`;
   return `<section class="village-detail-section"><h3>${escapeHtml(title)}</h3><div class="village-chip-row">${content}</div></section>`;
 }
 
@@ -465,40 +437,50 @@ function renderListSection(title, items, emptyText) {
 function renderActivityRow(activity) {
   const beneficiaries = Number(activity.metrics.directBeneficiaries || 0) + Number(activity.metrics.indirectBeneficiaries || 0);
   const outcome = activity.qualitative.keyOutcome || activity.qualitative.success || activity.description || "Pending field data";
+  return `<tr><td><strong>${escapeHtml(activity.activityName)}</strong><small>${escapeHtml(activity.responsiblePerson || "Responsible person not recorded")}</small></td><td>${escapeHtml(activity.projectName)}<small>${escapeHtml(activity.activityType)}</small></td><td>${escapeHtml(activity.datePeriod || "Not recorded")}</td><td>${escapeHtml(activity.targetGroup || "Not recorded")}</td><td>${formatNumber(beneficiaries)}</td><td><span class="village-status-pill">${escapeHtml(activity.validation.approvalStatus)}</span></td><td>${escapeHtml(outcome)}</td></tr>`;
+}
 
-  return `
-    <tr>
-      <td><strong>${escapeHtml(activity.activityName)}</strong><small>${escapeHtml(activity.responsiblePerson || "Responsible person not recorded")}</small></td>
-      <td>${escapeHtml(activity.projectName)}<small>${escapeHtml(activity.activityType)}</small></td>
-      <td>${escapeHtml(activity.datePeriod || "Not recorded")}</td>
-      <td>${escapeHtml(activity.targetGroup || "Not recorded")}</td>
-      <td>${formatNumber(beneficiaries)}</td>
-      <td><span class="village-status-pill">${escapeHtml(activity.validation.approvalStatus)}</span></td>
-      <td>${escapeHtml(outcome)}</td>
-    </tr>
-  `;
+function findVillageCard(village) {
+  return [...document.querySelectorAll(".village-summary-card")].find((card) => villageMatches(village, card.querySelector("h4")?.textContent));
+}
+
+function captureVillageSnapshot(village) {
+  const card = findVillageCard(village);
+  const tableRow = [...document.querySelectorAll("table tbody tr")].find((row) => villageMatches(village, row.querySelector("td")?.textContent));
+  const cells = tableRow ? [...tableRow.querySelectorAll("td")].map((cell) => cell.textContent.trim()) : [];
+  const cardMetricText = card ? [...card.querySelectorAll(".village-metrics span")].map((span) => span.textContent.trim()) : [];
+  if (!card && !tableRow) return null;
+
+  return {
+    village,
+    activities: parseNumber(cardMetricText.find((text) => /activit/i.test(text)) || cells[1]),
+    beneficiaries: parseNumber(cardMetricText.find((text) => /beneficiar/i.test(text)) || cells[2]),
+    pillarCount: parseNumber(cardMetricText.find((text) => /pillar/i.test(text))),
+    sdgCount: parseNumber(cardMetricText.find((text) => /sdg/i.test(text))),
+    projects: splitList(cells[3] || card?.querySelector("p")?.textContent || ""),
+    pillars: splitList(cells[4] || [...(card?.querySelectorAll(".village-tags b") || [])].map((tag) => tag.textContent.trim()).join(", ")),
+    sdgs: splitList(cells[5] || ""),
+    outcomes: splitList(cells[6] || ""),
+  };
 }
 
 async function showVillageDetails(village) {
   activeVillage = village;
+  const snapshot = captureVillageSnapshot(village);
   openModal();
   renderLoading(village);
 
   try {
     const activities = await loadActivities();
     if (activeVillage !== village) return;
-    const rows = activities.filter((activity) => activity.villages.includes(village));
-
-    if (!rows.length) {
-      modalTitle.textContent = village;
-      modalSubtitle.textContent = "No detailed activity records found for this village.";
-      modalContent.innerHTML = `<div class="village-detail-empty">No Supabase activity rows are currently linked to ${escapeHtml(village)}.</div>`;
-      return;
-    }
-
-    renderDetails(village, rows);
+    const rows = activities.filter((activity) => activity.villages.some((item) => villageMatches(village, item)));
+    if (rows.length) return renderDetails(village, rows);
+    if (snapshot) return renderSummaryFallback(village, snapshot);
+    modalTitle.textContent = village;
+    modalSubtitle.textContent = "No village data found.";
+    modalContent.innerHTML = `<div class="village-detail-empty">No dashboard summary or Supabase activity rows were found for ${escapeHtml(village)}.</div>`;
   } catch (error) {
-    renderError(village, error);
+    renderError(village, error, snapshot);
   }
 }
 
@@ -507,7 +489,6 @@ function enhanceVillageCards() {
     if (card.dataset.villageEnhanced === "true") return;
     const title = card.querySelector("h4")?.textContent?.trim();
     if (!title) return;
-
     card.dataset.villageEnhanced = "true";
     card.classList.add("village-summary-card--clickable");
     card.setAttribute("role", "button");
@@ -533,13 +514,9 @@ function startEnhancer() {
   installStyles();
   createModal();
   enhanceVillageCards();
-
   const observer = new MutationObserver(() => enhanceVillageCards());
   observer.observe(document.getElementById("root") || document.body, { childList: true, subtree: true });
-
-  window.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeModal();
-  });
+  window.addEventListener("keydown", (event) => { if (event.key === "Escape") closeModal(); });
 }
 
 if (document.readyState === "loading") {
