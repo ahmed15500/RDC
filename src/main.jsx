@@ -68,6 +68,7 @@ const blankSubmission = {
   organization: "",
   partners: "",
   village: "Galfina 1",
+  selectedVillages: [],
   datePeriod: "",
   targetGroup: "Women",
   objective: "",
@@ -486,7 +487,7 @@ function App() {
       responsiblePerson: payload.responsiblePerson,
       organization: payload.organization,
       partners: payload.partners,
-      villages: payload.village === "Multiple Villages" ? ["Multiple Villages"] : [payload.village],
+      villages: payload.village === "Multiple Villages" ? payload.selectedVillages : [payload.village],
       datePeriod: payload.datePeriod,
       targetGroup: payload.targetGroup,
       objective: payload.objective,
@@ -1272,6 +1273,13 @@ function SubmissionForm({ onSubmit, initial, role }) {
     setSelectedMetricGroups(recommendedMetricGroups(value));
     setShowAllMetrics(false);
   }
+  function updateVillage(value) {
+    setForm((current) => ({
+      ...current,
+      village: value,
+      selectedVillages: value === "Multiple Villages" ? current.selectedVillages : [],
+    }));
+  }
   function toggleList(key, value) {
     setForm((current) => ({ ...current, [key]: current[key].includes(value) ? current[key].filter((item) => item !== value) : [...current[key], value] }));
   }
@@ -1287,6 +1295,10 @@ function SubmissionForm({ onSubmit, initial, role }) {
     if (disabled) return;
     if (!form.projectName || !form.activityName || !form.responsiblePerson) {
       setSubmitError("Project name, activity name, and responsible person are required.");
+      return;
+    }
+    if (form.village === "Multiple Villages" && !form.selectedVillages.length) {
+      setSubmitError("Select at least one village under Multiple Villages.");
       return;
     }
     if (!form.pillars.length) {
@@ -1331,7 +1343,17 @@ function SubmissionForm({ onSubmit, initial, role }) {
         <Field label="Responsible person" value={form.responsiblePerson} onChange={(v) => update("responsiblePerson", v)} />
         <Field label="Organization / department" value={form.organization} onChange={(v) => update("organization", v)} />
         <Field label="Implementing partners" value={form.partners} onChange={(v) => update("partners", v)} />
-        <SelectField label="Village" value={form.village} options={VILLAGES} onChange={(v) => update("village", v)} />
+        <SelectField label="Village" value={form.village} options={VILLAGES} onChange={updateVillage} />
+        {form.village === "Multiple Villages" && (
+          <div className="checkbox-group span-2">
+            {VILLAGES.filter((village) => !["Multiple Villages", "Other"].includes(village)).map((village) => (
+              <label key={village}>
+                <input type="checkbox" checked={form.selectedVillages.includes(village)} onChange={() => toggleList("selectedVillages", village)} />
+                {village}
+              </label>
+            ))}
+          </div>
+        )}
         <Field label="Date or implementation period" value={form.datePeriod} onChange={(v) => update("datePeriod", v)} />
         <SelectField label="Target group" value={form.targetGroup} options={TARGET_GROUPS} onChange={(v) => update("targetGroup", v)} />
         <TextArea label="Main objective" value={form.objective} onChange={(v) => update("objective", v)} />
@@ -1417,6 +1439,7 @@ function CheckboxGroup({ values, selected, onToggle }) {
 }
 
 function activityToForm(activity) {
+  const regularVillages = activity.villages.filter((village) => VILLAGES.includes(village) && !["Multiple Villages", "Other"].includes(village));
   return {
     ...blankSubmission,
     projectName: activity.projectName,
@@ -1425,7 +1448,8 @@ function activityToForm(activity) {
     responsiblePerson: activity.responsiblePerson,
     organization: activity.organization,
     partners: activity.partners,
-    village: activity.villages[0],
+    village: regularVillages.length > 1 ? "Multiple Villages" : activity.villages[0],
+    selectedVillages: regularVillages.length > 1 ? regularVillages : [],
     datePeriod: activity.datePeriod,
     targetGroup: activity.targetGroup,
     objective: activity.objective,
