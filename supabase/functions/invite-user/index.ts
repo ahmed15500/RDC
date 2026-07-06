@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const ADMIN_EMAIL = "ahmed.bahrawy@hu.edu.eg";
+const DEFAULT_APP_URL = "https://rdc-tau.vercel.app";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -72,9 +73,9 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "A valid email is required." }, 400);
   }
 
-  const origin = req.headers.get("Origin") || undefined;
+  const appUrl = (Deno.env.get("APP_URL") || DEFAULT_APP_URL).replace(/\/$/, "");
   const { data, error } = await adminClient.auth.admin.inviteUserByEmail(email, {
-    redirectTo: origin,
+    redirectTo: `${appUrl}/set-password`,
     data: { name, department },
   });
 

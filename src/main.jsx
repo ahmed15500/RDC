@@ -35,7 +35,7 @@ import {
   YAxis,
 } from "recharts";
 import { ACTIVITY_TYPES, PILLARS, SDGS, TARGET_GROUPS, VILLAGES, seedActivities } from "./sampleData";
-import { ADMIN_EMAIL, ensureProfile, getAllActivities, getApprovedActivities, getCurrentSession, inviteUser, listProfiles, mapSupabaseActivity, signIn, signOut, submitActivity, updateProfileRole } from "./lib/activities";
+import { ADMIN_EMAIL, ensureProfile, getAllActivities, getApprovedActivities, getCurrentSession, inviteUser, listProfiles, mapSupabaseActivity, signIn, signOut, submitActivity, updatePassword, updateProfileRole } from "./lib/activities";
 import rdcLogo from "./assets/heliopolis-rdc-logo.svg";
 import "./styles.css";
 
@@ -359,6 +359,7 @@ function App() {
   const [filters, setFilters] = useState({ query: "", village: "All", pillar: "All", sdg: "All", targetGroup: "All", status: "All" });
   const [editingActivity, setEditingActivity] = useState(null);
   const summaries = useMemo(() => buildSummaries(activities), [activities]);
+  const isSetPasswordRoute = window.location.pathname === "/set-password";
 
   useEffect(() => {
     let active = true;
@@ -438,6 +439,17 @@ function App() {
     setSession(nextSession);
     await initializeUser(nextSession.user);
     setAppMessage("Logged in with Supabase.");
+  }
+
+  async function handleSetPassword(password) {
+    await updatePassword(password);
+    await signOut();
+    setSession(null);
+    setProfile(null);
+    setProfiles([]);
+    setRole("Viewer");
+    window.history.replaceState({}, "", "/");
+    setAppMessage("Password set successfully. Please login with your email and new password.");
   }
 
   async function refreshProfiles() {
@@ -569,6 +581,7 @@ function App() {
   }
 
   if (authLoading) return <LoadingScreen message="Checking Supabase session..." />;
+  if (isSetPasswordRoute) return <SetPasswordPage session={session} onSetPassword={handleSetPassword} message={appMessage} />;
   if (!session) return <SupabaseLoginPage onLogin={handleLogin} message={appMessage} />;
 
   return (
@@ -651,6 +664,57 @@ function LoadingScreen({ message }) {
       <section className="login-card">
         <img className="login-logo" src={rdcLogo} alt="Heliopolis University Rural Development Center logo" />
         <h1>{message}</h1>
+      </section>
+    </main>
+  );
+}
+
+function SetPasswordPage({ session, onSetPassword, message }) {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setAuthError("");
+    if (!session) {
+      setAuthError("Invitation session was not found. Open the latest invitation email link again.");
+      return;
+    }
+    if (password.length < 8) {
+      setAuthError("Password must be at least 8 characters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setAuthError("Passwords do not match.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await onSetPassword(password);
+    } catch (error) {
+      setAuthError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <main className="login-page">
+      <form className="login-card" onSubmit={handleSubmit}>
+        <img className="login-logo" src={rdcLogo} alt="Heliopolis University Rural Development Center logo" />
+        <h1>Set your password</h1>
+        <p>Create your password for the RDC Impact Data Platform. After saving it, login again with your email and password.</p>
+        {!session && <div className="auth-error">No active invitation session found. Use the latest invitation email link, and do not open it in a link preview tool.</div>}
+        <label>New password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" autoComplete="new-password" /></label>
+        <label>Confirm password<input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Repeat password" autoComplete="new-password" /></label>
+        {(authError || message) && <div className={authError ? "auth-error" : "auth-info"}>{authError || message}</div>}
+        <button className="primary full" disabled={loading || !session}><Lock size={16} /> {loading ? "Saving..." : "Save password"}</button>
+      </form>
+      <section className="login-visual">
+        <h2>Welcome to the RDC evidence system.</h2>
+        <div className="pillar-orbit">{PILLARS.map((pillar) => <span key={pillar} style={{ "--pillar": pillarColors[pillar] }}>{pillar}</span>)}</div>
       </section>
     </main>
   );
