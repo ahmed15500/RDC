@@ -133,7 +133,15 @@ export async function inviteUser({ email, name = "", department = "" }) {
     body: { email, name, department },
   });
 
-  if (error) throw error;
+  if (error) {
+    const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-user`;
+    const isNetworkError = String(error.message || "").toLowerCase().includes("failed to send");
+    throw new Error(
+      isNetworkError
+        ? `Invite function is not reachable. Deploy the Supabase Edge Function "invite-user" and confirm it is available at ${functionUrl}.`
+        : error.message,
+    );
+  }
   if (data?.error) throw new Error(data.error);
   return data;
 }
