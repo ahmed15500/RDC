@@ -35,7 +35,7 @@ import {
   YAxis,
 } from "recharts";
 import { ACTIVITY_TYPES, PILLARS, SDGS, TARGET_GROUPS, VILLAGES, seedActivities } from "./sampleData";
-import { ADMIN_EMAIL, ensureProfile, getAllActivities, getApprovedActivities, getCurrentSession, listProfiles, mapSupabaseActivity, signIn, signOut, signUp, submitActivity, updateProfileRole } from "./lib/activities";
+import { ADMIN_EMAIL, ensureProfile, getAllActivities, getApprovedActivities, getCurrentSession, listProfiles, mapSupabaseActivity, signIn, signOut, submitActivity, updateProfileRole } from "./lib/activities";
 import rdcLogo from "./assets/heliopolis-rdc-logo.svg";
 import "./styles.css";
 
@@ -440,17 +440,6 @@ function App() {
     setAppMessage("Logged in with Supabase.");
   }
 
-  async function handleSignup(email, password, signupProfile) {
-    const { session: nextSession, user } = await signUp(email, password, signupProfile);
-    setSession(nextSession);
-    setAppMessage(nextSession ? "Account created and logged in." : "Account created. Check email confirmation if required by Supabase.");
-    if (nextSession) {
-      await initializeUser(nextSession.user);
-    } else if (user) {
-      setRole("Viewer");
-    }
-  }
-
   async function refreshProfiles() {
     try {
       setProfiles(await listProfiles());
@@ -574,7 +563,7 @@ function App() {
   }
 
   if (authLoading) return <LoadingScreen message="Checking Supabase session..." />;
-  if (!session) return <SupabaseLoginPage onLogin={handleLogin} onSignup={handleSignup} message={appMessage} />;
+  if (!session) return <SupabaseLoginPage onLogin={handleLogin} message={appMessage} />;
 
   return (
     <div className={`app-shell ${sidebarOpen ? "sidebar-open" : ""}`} dir={language === "AR" ? "rtl" : "ltr"}>
@@ -661,12 +650,9 @@ function LoadingScreen({ message }) {
   );
 }
 
-function SupabaseLoginPage({ onLogin, onSignup, message }) {
-  const [mode, setMode] = useState("login");
+function SupabaseLoginPage({ onLogin, message }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [department, setDepartment] = useState("");
   const [authError, setAuthError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -683,16 +669,7 @@ function SupabaseLoginPage({ onLogin, onSignup, message }) {
     }
     setLoading(true);
     try {
-      if (mode === "login") {
-        await onLogin(email, password);
-      } else {
-        if (!department) {
-          setAuthError("Department is required for new users.");
-          setLoading(false);
-          return;
-        }
-        await onSignup(email, password, { name, department });
-      }
+      await onLogin(email, password);
     } catch (error) {
       setAuthError(error.message);
     } finally {
@@ -706,18 +683,14 @@ function SupabaseLoginPage({ onLogin, onSignup, message }) {
         <img className="login-logo" src={rdcLogo} alt="Heliopolis University Rural Development Center logo" />
         <h1>RDC Impact Data Platform</h1>
         <p>Collect, validate, summarize, and visualize the full social transformation impact of RDC's 13-village model.</p>
-        <div className="auth-tabs">
-          <button type="button" className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Login</button>
-          <button type="button" className={mode === "signup" ? "active" : ""} onClick={() => setMode("signup")}>Sign up</button>
+        <div className="auth-info invitation-only">
+          Accounts are invitation-only. Ahmed Bahrawy adds approved users from Supabase Authentication, then promotes them inside the Users tab when data entry access is needed.
         </div>
         <label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" autoComplete="email" /></label>
-        <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 6 characters" autoComplete={mode === "login" ? "current-password" : "new-password"} /></label>
-        {mode === "signup" && <Field label="Full name" value={name} onChange={setName} />}
-        {mode === "signup" && <Field label="Department / organization" value={department} onChange={setDepartment} />}
-        <div className="auth-info">New users enter as Viewer. Ahmed Bahrawy is the only Admin and can promote users for data entry.</div>
+        <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" autoComplete="current-password" /></label>
         {(authError || message) && <div className={authError ? "auth-error" : "auth-info"}>{authError || message}</div>}
-        <button className="primary full" disabled={loading}><Lock size={16} /> {loading ? "Please wait..." : mode === "login" ? "Login to dashboard" : "Create account"}</button>
-        <small>Authentication uses Supabase email and password. The frontend uses only the publishable key.</small>
+        <button className="primary full" disabled={loading}><Lock size={16} /> {loading ? "Please wait..." : "Login to dashboard"}</button>
+        <small>No public sign-up is available from this application. Authentication uses Supabase email and password with only the publishable key in frontend code.</small>
       </form>
       <section className="login-visual">
         <h2>Four sustainability pillars, one integrated evidence system.</h2>
