@@ -16,6 +16,14 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   });
 }
 
+function resolveAppUrl() {
+  const configuredUrl = (Deno.env.get("APP_URL") || DEFAULT_APP_URL).trim().replace(/\/$/, "");
+  if (!configuredUrl || configuredUrl.includes("localhost") || configuredUrl.includes("127.0.0.1")) {
+    return DEFAULT_APP_URL;
+  }
+  return configuredUrl;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -28,9 +36,14 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("VITE_SUPABASE_PUBLISHABLE_KEY");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SECRET_KEY");
+  const defaultInvitePassword = Deno.env.get("DEFAULT_INVITE_PASSWORD");
 
   if (!supabaseUrl || !anonKey || !serviceRoleKey) {
     return jsonResponse({ error: "Invite function is missing Supabase environment variables." }, 500);
+  }
+
+  if (!defaultInvitePassword) {
+    return jsonResponse({ error: "Invite function is missing DEFAULT_INVITE_PASSWORD." }, 500);
   }
 
   const authHeader = req.headers.get("Authorization") || "";
@@ -73,10 +86,16 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "A valid email is required." }, 400);
   }
 
-  const appUrl = (Deno.env.get("APP_URL") || DEFAULT_APP_URL).replace(/\/$/, "");
+  const appUrl = resolveAppUrl();
+  const userMetadata = {
+    name,
+    department,
+    login_url: appUrl,
+  };
+
   const { data, error } = await adminClient.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${appUrl}/set-password`,
-    data: { name, department },
+    redirectTo: appUrl,
+    data: userMetadata,
   });
 
   if (error) {
@@ -84,6 +103,16 @@ Deno.serve(async (req) => {
   }
 
   if (data.user?.id) {
+    const { error: passwordError } = await adminClient.auth.admin.updateUserById(data.user.id, {
+      password: defaultInvitePassword,
+      email_confirm: true,
+      user_metadata: userMetadata,
+    });
+
+    if (passwordError) {
+      return jsonResponse({ error: passwordError.message }, 400);
+    }
+
     await adminClient.from("profiles").upsert(
       {
         id: data.user.id,
@@ -97,5 +126,10 @@ Deno.serve(async (req) => {
     );
   }
 
-  return jsonResponse({ ok: true, userId: data.user?.id || null });
+  return jsonResponse({
+    ok: true,
+    userId: data.user?.id || null,
+    loginUrl: appUrl,
+    email,
+  });
 });
