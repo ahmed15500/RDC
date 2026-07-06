@@ -59,6 +59,34 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
+alter table public.profiles add column if not exists email text;
+alter table public.profiles add column if not exists name text;
+alter table public.profiles add column if not exists department text;
+alter table public.profiles add column if not exists role text default 'viewer';
+alter table public.profiles add column if not exists created_at timestamptz default now();
+alter table public.profiles add column if not exists updated_at timestamptz default now();
+
+update public.profiles
+set role = 'viewer'
+where role is null;
+
+alter table public.profiles alter column role set default 'viewer';
+alter table public.profiles alter column role set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'profiles_role_check'
+    and conrelid = 'public.profiles'::regclass
+  ) then
+    alter table public.profiles
+    add constraint profiles_role_check check (role in ('admin', 'stakeholder', 'viewer'));
+  end if;
+end;
+$$;
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -232,7 +260,7 @@ create index if not exists activities_approval_status_idx on public.activities (
 create index if not exists activities_village_idx on public.activities (village);
 create index if not exists activities_activity_type_idx on public.activities (activity_type);
 create index if not exists profiles_role_idx on public.profiles (role);
-create index if not exists profiles_email_idx on public.profiles (email);
+create unique index if not exists profiles_email_idx on public.profiles (lower(email));
 
 update public.profiles
 set role = 'admin', updated_at = now()
