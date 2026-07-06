@@ -348,6 +348,7 @@ function App() {
   const [profile, setProfile] = useState(null);
   const [profiles, setProfiles] = useState([]);
   const [activeView, setActiveView] = useState("home");
+  const [selectedProject, setSelectedProject] = useState(null);
   const [language, setLanguage] = useState("EN");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activities, setActivities] = useState([]);
@@ -590,7 +591,7 @@ function App() {
           {navItems.filter((item) => !item.adminOnly || role === "Admin").map((item) => {
             const Icon = item.icon;
             return (
-              <button key={item.id} className={activeView === item.id ? "active" : ""} onClick={() => { setActiveView(item.id); setSidebarOpen(false); }}>
+              <button key={item.id} className={activeView === item.id ? "active" : ""} onClick={() => { setSelectedProject(null); setActiveView(item.id); setSidebarOpen(false); }}>
                 <Icon size={18} />
                 {item.label}
               </button>
@@ -603,7 +604,7 @@ function App() {
         <header className="topbar">
           <div>
             <button className="menu-toggle" aria-label="Open navigation" onClick={() => setSidebarOpen(true)}><Menu size={18} /> Menu</button>
-            <h1>{navItems.find((item) => item.id === activeView)?.label || "RDC Impact"}</h1>
+            <h1>{selectedProject ? selectedProject.type : navItems.find((item) => item.id === activeView)?.label || "RDC Impact"}</h1>
             <p>Integrated rural social transformation across 13 villages.</p>
           </div>
           <div className="top-actions">
@@ -622,7 +623,8 @@ function App() {
         {activeView === "submit" && <SubmissionForm onSubmit={addSubmission} initial={editingActivity} role={role} />}
         {activeView === "admin" && <AdminDashboard summaries={summaries} activities={filteredActivities} updateApproval={updateApproval} role={role} />}
         {activeView === "villages" && <VillageDashboard summaries={summaries} />}
-        {activeView === "projects" && <ProjectDashboard summaries={summaries} />}
+        {activeView === "projects" && !selectedProject && <ProjectDashboard summaries={summaries} onOpenProject={setSelectedProject} />}
+        {activeView === "projects" && selectedProject && <ProjectDetailPage project={selectedProject} activities={activities} role={role} onBack={() => setSelectedProject(null)} onExport={() => exportCsv(activities.filter((activity) => activity.activityType === selectedProject.type))} onEdit={(activity) => { setEditingActivity(activity); setSelectedProject(null); setActiveView("submit"); }} onDelete={deleteActivity} updateApproval={updateApproval} />}
         {activeView === "pillars" && <PillarDashboard summaries={summaries} />}
         {activeView === "sdgs" && <SdgDashboard summaries={summaries} />}
         {activeView === "transformation" && <TransformationDashboard summaries={summaries} activities={activities} />}
@@ -889,8 +891,150 @@ function VillageDashboard({ summaries }) {
     </section>
   );
 }
-function ProjectDashboard({ summaries }) {
-  return <section className="project-list">{summaries.byProject.map((p) => <article className="panel project-row" key={p.type}><div><h3>{p.type}</h3><p>{p.activities} activities · {formatNumber(p.beneficiaries)} beneficiaries · {p.villages.length} villages</p></div><div><strong>Target groups</strong><p>{p.targetGroups.join(", ")}</p></div><div><strong>Pillars</strong><p>{p.pillars.join(", ")}</p></div><div><strong>Future opportunities</strong><p>{p.opportunities.slice(0, 2).join(" | ") || "To be defined"}</p></div></article>)}</section>;
+function ProjectDashboard({ summaries, onOpenProject }) {
+  return (
+    <section className="project-list">
+      {summaries.byProject.map((p) => (
+        <button className="panel project-row project-clickable" key={p.type} onClick={() => onOpenProject(p)}>
+          <div>
+            <h3>{p.type}</h3>
+            <p>{p.activities} activities · {formatNumber(p.beneficiaries)} beneficiaries · {p.villages.length} villages</p>
+          </div>
+          <div><strong>Target groups</strong><p>{p.targetGroups.join(", ")}</p></div>
+          <div><strong>Pillars</strong><p>{p.pillars.join(", ")}</p></div>
+          <div><strong>Future opportunities</strong><p>{p.opportunities.slice(0, 2).join(" | ") || "To be defined"}</p></div>
+          <span className="open-project">Open details</span>
+        </button>
+      ))}
+    </section>
+  );
+}
+
+function ProjectDetailPage({ project, activities, role, onBack, onExport, onEdit, onDelete, updateApproval }) {
+  const projectActivities = activities.filter((activity) => activity.activityType === project.type);
+  const direct = projectActivities.reduce((total, activity) => total + Number(activity.metrics.directBeneficiaries || 0), 0);
+  const indirect = projectActivities.reduce((total, activity) => total + Number(activity.metrics.indirectBeneficiaries || 0), 0);
+  const villages = [...new Set(projectActivities.flatMap((activity) => activity.villages))];
+  const pillars = [...new Set(projectActivities.flatMap((activity) => activity.pillars))];
+  const sdgs = [...new Set(projectActivities.flatMap((activity) => activity.sdgs.map((sdg) => `SDG ${sdg.number}`)))];
+  const villageRows = villages.map((village) => {
+    const rows = projectActivities.filter((activity) => activity.villages.includes(village));
+    return {
+      village,
+      activities: rows.length,
+      beneficiaries: rows.reduce((total, activity) => total + Number(activity.metrics.directBeneficiaries || 0) + Number(activity.metrics.indirectBeneficiaries || 0), 0),
+    };
+  });
+  const evidence = projectActivities.flatMap((activity) => activity.evidence.map((item) => ({ ...item, activityName: activity.activityName })));
+  const keyOutcomes = projectActivities.map((activity) => activity.qualitative.keyOutcome).filter(Boolean);
+  const challenges = projectActivities.map((activity) => activity.qualitative.challenge).filter(Boolean);
+  const opportunities = projectActivities.map((activity) => activity.qualitative.futureOpportunity).filter(Boolean);
+  const firstActivity = projectActivities[0];
+
+  return (
+    <section className="project-detail stack">
+      <div className="project-detail-header">
+        <button className="secondary" onClick={onBack}>Back to projects</button>
+        <div>
+          <h2>{project.type}</h2>
+          <p>{firstActivity?.objective || "Integrated RDC project area connected to village-level transformation outcomes."}</p>
+        </div>
+      </div>
+
+      <article className="panel project-overview-panel">
+        <h3>Project Overview</h3>
+        <div className="project-overview-grid">
+          <InfoItem label="Project name" value={project.type} />
+          <InfoItem label="Description" value={firstActivity?.description || project.outcomes[0] || "No description recorded yet."} />
+          <InfoItem label="General objective" value={firstActivity?.objective || "Strengthen integrated rural development outcomes through evidence-based field activity."} />
+          <InfoItem label="Implementation period" value={firstActivity?.datePeriod || "Multiple periods"} />
+          <InfoItem label="Status" value={projectActivities.some((activity) => activity.validation.approvalStatus === "Pending") ? "Pending validation items" : "Validated / in progress"} />
+          <InfoItem label="Responsible person" value={firstActivity?.responsiblePerson || "Not assigned"} />
+          <InfoItem label="Partners" value={[...new Set(projectActivities.map((activity) => activity.partners).filter(Boolean))].join(", ") || "No partners recorded"} />
+        </div>
+      </article>
+
+      <article className="panel">
+        <h3>Key Numbers</h3>
+        <div className="project-kpi-grid">
+          <InfoMetric label="Activities" value={projectActivities.length} />
+          <InfoMetric label="Total beneficiaries" value={formatNumber(direct + indirect)} />
+          <InfoMetric label="Villages" value={villages.length} />
+          <InfoMetric label="Schools" value={formatNumber(projectActivities.reduce((total, activity) => total + Number(activity.metrics.schools || 0), 0))} />
+          <InfoMetric label="Households" value={formatNumber(projectActivities.reduce((total, activity) => total + Number(activity.metrics.households || 0), 0))} />
+          <InfoMetric label="Volunteers" value={formatNumber(projectActivities.reduce((total, activity) => total + Number(activity.metrics.volunteers || 0), 0))} />
+        </div>
+      </article>
+
+      <article className="panel">
+        <h3>Activities</h3>
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>Activity</th><th>Date</th><th>Village</th><th>Beneficiaries</th><th>Status</th></tr></thead>
+            <tbody>
+              {projectActivities.map((activity) => <tr key={activity.id}><td><strong>{activity.activityName}</strong></td><td>{activity.datePeriod || "Not recorded"}</td><td>{activity.villages.join(", ")}</td><td>{formatNumber(Number(activity.metrics.directBeneficiaries || 0) + Number(activity.metrics.indirectBeneficiaries || 0))}</td><td><span className={`status ${activity.validation.approvalStatus.toLowerCase().replace(" ", "-")}`}>{activity.validation.approvalStatus}</span></td></tr>)}
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <div className="grid two">
+        <article className="panel">
+          <h3>Villages Covered</h3>
+          <div className="project-mini-list">{villageRows.map((row) => <div key={row.village}><strong>{row.village}</strong><span>{row.activities} activities · {formatNumber(row.beneficiaries)} beneficiaries</span></div>)}</div>
+        </article>
+        <article className="panel">
+          <h3>Sustainable Development Pillars</h3>
+          <div className="project-pillars">{pillars.map((pillar) => <span key={pillar} style={{ "--pillar": pillarColors[pillar] }}>{pillar}</span>)}</div>
+          <h3 className="subhead">SDGs</h3>
+          <div className="project-sdgs">{sdgs.map((sdg) => <span key={sdg}>{sdg}</span>)}</div>
+        </article>
+      </div>
+
+      <article className="panel">
+        <h3>Evidence & Media</h3>
+        <div className="project-evidence-grid">
+          {evidence.length ? evidence.map((item, index) => <a key={`${item.url}-${index}`} href={item.url} target="_blank" rel="noreferrer"><strong>{item.type}</strong><span>{item.activityName}</span><em>{item.url}</em></a>) : <p className="summary-text">No evidence links recorded yet.</p>}
+        </div>
+      </article>
+
+      <div className="grid two">
+        <article className="panel">
+          <h3>Results & Impact</h3>
+          <ul className="project-bullets">{keyOutcomes.slice(0, 8).map((outcome) => <li key={outcome}>{outcome}</li>)}</ul>
+          {challenges.length > 0 && <p className="summary-text"><strong>Main challenges:</strong> {challenges.slice(0, 3).join(" | ")}</p>}
+        </article>
+        <article className="panel">
+          <h3>Future Opportunities</h3>
+          <ul className="project-bullets">{opportunities.slice(0, 8).map((opportunity) => <li key={opportunity}>{opportunity}</li>)}</ul>
+        </article>
+      </div>
+
+      {role === "Admin" && (
+        <article className="panel admin-actions">
+          <h3>Admin Actions</h3>
+          <button className="secondary" onClick={onExport}>Export Excel CSV</button>
+          <button className="secondary" onClick={() => window.print()}>Export PDF / Print</button>
+          {projectActivities.slice(0, 5).map((activity) => (
+            <div className="admin-action-row" key={activity.id}>
+              <strong>{activity.activityName}</strong>
+              <button onClick={() => onEdit(activity)}>Edit</button>
+              <select value={activity.validation.approvalStatus} onChange={(event) => updateApproval(activity.id, event.target.value)}><option>Pending</option><option>Approved</option><option>Needs revision</option><option>Rejected</option></select>
+              <button className="danger" onClick={() => onDelete(activity.id)}>Delete</button>
+            </div>
+          ))}
+        </article>
+      )}
+    </section>
+  );
+}
+
+function InfoItem({ label, value }) {
+  return <div className="info-item"><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function InfoMetric({ label, value }) {
+  return <div className="info-metric"><strong>{value}</strong><span>{label}</span></div>;
 }
 
 function PillarDashboard({ summaries }) {

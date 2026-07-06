@@ -671,6 +671,226 @@ blockquote {
   align-items: start;
 }
 
+.project-clickable {
+  position: relative;
+  width: 100%;
+  color: inherit;
+  border: 1px solid rgba(36, 43, 120, 0.1);
+  text-align: left;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.project-clickable:hover {
+  border-color: rgba(230, 0, 126, 0.22);
+  box-shadow: 0 26px 80px rgba(20, 30, 84, 0.16);
+  transform: translateY(-2px);
+}
+
+.open-project {
+  position: absolute;
+  right: 18px;
+  bottom: 16px;
+  color: var(--magenta);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.project-detail-header {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 18px;
+  align-items: start;
+  padding: 22px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(255, 133, 0, 0.18), transparent 18rem),
+    linear-gradient(135deg, rgba(36, 43, 120, 0.96), rgba(36, 43, 120, 0.82));
+  color: white;
+  box-shadow: var(--shadow);
+}
+
+.project-detail-header h2 {
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(2rem, 4vw, 4rem);
+  letter-spacing: -0.04em;
+}
+
+.project-detail-header p {
+  max-width: 900px;
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1.6;
+}
+
+.project-overview-grid,
+.project-kpi-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.project-overview-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.project-kpi-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.info-item,
+.info-metric {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(145deg, white, #f7f8ff);
+}
+
+.info-item span,
+.info-metric span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.info-item strong,
+.info-metric strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--navy);
+  line-height: 1.45;
+}
+
+.info-metric strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.6rem;
+}
+
+.project-mini-list,
+.project-evidence-grid,
+.project-bullets {
+  display: grid;
+  gap: 10px;
+}
+
+.project-mini-list div {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.project-mini-list strong {
+  color: var(--navy);
+}
+
+.project-mini-list span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.project-pillars,
+.project-sdgs {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.project-pillars span,
+.project-sdgs span {
+  padding: 9px 12px;
+  border-radius: 999px;
+  font-weight: 900;
+}
+
+.project-pillars span {
+  color: var(--pillar);
+  background: color-mix(in srgb, var(--pillar) 12%, white);
+}
+
+.project-sdgs span {
+  color: var(--navy);
+  background: #edf0ff;
+}
+
+.subhead {
+  margin-top: 22px !important;
+}
+
+.project-evidence-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.project-evidence-grid a {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  color: inherit;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: white;
+  text-decoration: none;
+}
+
+.project-evidence-grid strong {
+  color: var(--navy);
+}
+
+.project-evidence-grid span,
+.project-evidence-grid em {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.project-bullets {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.project-bullets li {
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.admin-actions h3 {
+  width: 100%;
+}
+
+.admin-action-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto 190px auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: white;
+}
+
+.admin-action-row button {
+  padding: 9px 12px;
+  border: 1px solid rgba(36, 43, 120, 0.16);
+  border-radius: 999px;
+  background: white;
+  color: var(--navy);
+  font-weight: 900;
+}
+
 .pillar-card {
   padding: 22px;
   border-top: 7px solid var(--pillar);
@@ -1312,6 +1532,7 @@ label small {
   .kpi-grid,
   .grid.four,
   .project-row,
+  .project-kpi-grid,
   .data-card,
   .filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1343,6 +1564,10 @@ label small {
   .kpi-grid,
   .form-grid,
   .project-row,
+  .project-detail-header,
+  .project-overview-grid,
+  .project-kpi-grid,
+  .admin-action-row,
   .data-card,
   .filters,
   .login-page,
