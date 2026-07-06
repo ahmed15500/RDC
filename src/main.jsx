@@ -35,7 +35,7 @@ import {
   YAxis,
 } from "recharts";
 import { ACTIVITY_TYPES, PILLARS, SDGS, TARGET_GROUPS, VILLAGES, seedActivities } from "./sampleData";
-import { ADMIN_EMAIL, ensureProfile, getAllActivities, getApprovedActivities, getCurrentSession, listProfiles, mapSupabaseActivity, signIn, signOut, submitActivity, updateProfileRole } from "./lib/activities";
+import { ADMIN_EMAIL, ensureProfile, getAllActivities, getApprovedActivities, getCurrentSession, inviteUser, listProfiles, mapSupabaseActivity, signIn, signOut, submitActivity, updateProfileRole } from "./lib/activities";
 import rdcLogo from "./assets/heliopolis-rdc-logo.svg";
 import "./styles.css";
 
@@ -454,6 +454,12 @@ function App() {
     setAppMessage("User role updated.");
   }
 
+  async function handleInviteUser(payload) {
+    await inviteUser(payload);
+    await refreshProfiles();
+    setAppMessage("Invitation email sent. The user will appear here after accepting the invitation or when Supabase creates the invited user.");
+  }
+
   async function handleLogout() {
     await signOut();
     setSession(null);
@@ -632,7 +638,7 @@ function App() {
             onRoleChange={handlePromoteUser}
           />
         )}
-        {activeView === "users" && role === "Admin" && <UserManagement profiles={profiles} onRoleChange={handlePromoteUser} onRefresh={refreshProfiles} />}
+        {activeView === "users" && role === "Admin" && <UserManagement profiles={profiles} onRoleChange={handlePromoteUser} onRefresh={refreshProfiles} onInviteUser={handleInviteUser} />}
         {activeView === "users" && role !== "Admin" && <article className="panel"><h3>Admin only</h3><p className="summary-text">Only the RDC admin can manage user permissions.</p></article>}
       </main>
     </div>
@@ -1190,40 +1196,86 @@ function DataManagement({ activities, filters, setFilters, role, onEdit, onDelet
   );
 }
 
-function UserManagement({ profiles, onRoleChange, onRefresh }) {
+function UserManagement({ profiles, onRoleChange, onRefresh, onInviteUser }) {
+  const [inviteForm, setInviteForm] = useState({ email: "", name: "", department: "" });
+  const [inviteError, setInviteError] = useState("");
+  const [inviteSuccess, setInviteSuccess] = useState("");
+  const [inviting, setInviting] = useState(false);
+
+  function updateInvite(key, value) {
+    setInviteForm((current) => ({ ...current, [key]: value }));
+  }
+
+  async function handleInviteSubmit(event) {
+    event.preventDefault();
+    setInviteError("");
+    setInviteSuccess("");
+    if (!inviteForm.email) {
+      setInviteError("Email is required.");
+      return;
+    }
+    setInviting(true);
+    try {
+      await onInviteUser(inviteForm);
+      setInviteSuccess("Invitation sent.");
+      setInviteForm({ email: "", name: "", department: "" });
+    } catch (error) {
+      setInviteError(error.message || "Invitation failed.");
+    } finally {
+      setInviting(false);
+    }
+  }
+
   return (
-    <article className="panel">
-      <div className="panel-heading">
-        <h3>User permissions</h3>
-        <button className="secondary" onClick={onRefresh}>Refresh users</button>
-      </div>
-      <p className="summary-text">New users enter as Viewer. Promote only trusted project officers to Stakeholder so they can submit activity data.</p>
-      <div className="table-wrap">
-        <table>
-          <thead><tr><th>User</th><th>Department</th><th>Current role</th><th>Permission</th></tr></thead>
-          <tbody>
-            {!profiles.length && <tr><td colSpan="4">No user profiles found yet. Users appear here after they sign up and confirm/login.</td></tr>}
-            {profiles.map((profile) => (
-              <tr key={profile.id}>
-                <td><strong>{profile.name || "Unnamed user"}</strong><small>{profile.email}</small></td>
-                <td>{profile.department || "Not provided"}</td>
-                <td><span className="status">{roleToLabel(profile.role)}</span></td>
-                <td>
-                  {profile.role === "admin" ? (
-                    <span className="role-lock">Only admin</span>
-                  ) : (
-                    <select value={profile.role} onChange={(event) => onRoleChange(profile.id, event.target.value)}>
-                      <option value="viewer">Viewer</option>
-                      <option value="stakeholder">Stakeholder / Project Officer</option>
-                    </select>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </article>
+    <section className="stack">
+      <article className="panel">
+        <div className="panel-heading">
+          <h3>Invite approved user</h3>
+          <button className="secondary" onClick={onRefresh}>Refresh users</button>
+        </div>
+        <p className="summary-text">Send invitations only to approved RDC stakeholders. Invited users enter as Viewer first; promote them after they accept the invitation.</p>
+        <form className="invite-form" onSubmit={handleInviteSubmit}>
+          <label>Email<input type="email" value={inviteForm.email} onChange={(event) => updateInvite("email", event.target.value)} placeholder="person@example.com" /></label>
+          <label>Full name<input value={inviteForm.name} onChange={(event) => updateInvite("name", event.target.value)} placeholder="Optional" /></label>
+          <label>Department / organization<input value={inviteForm.department} onChange={(event) => updateInvite("department", event.target.value)} placeholder="Optional" /></label>
+          <button className="primary" disabled={inviting}>{inviting ? "Sending..." : "Send invitation"}</button>
+        </form>
+        {inviteError && <div className="auth-error">{inviteError}</div>}
+        {inviteSuccess && <div className="auth-info">{inviteSuccess}</div>}
+      </article>
+
+      <article className="panel">
+        <div className="panel-heading">
+          <h3>User permissions</h3>
+        </div>
+        <p className="summary-text">New users enter as Viewer. Promote only trusted project officers to Stakeholder so they can submit activity data.</p>
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>User</th><th>Department</th><th>Current role</th><th>Permission</th></tr></thead>
+            <tbody>
+              {!profiles.length && <tr><td colSpan="4">No user profiles found yet. Invited users appear here after accepting the invitation or first login.</td></tr>}
+              {profiles.map((profile) => (
+                <tr key={profile.id}>
+                  <td><strong>{profile.name || "Unnamed user"}</strong><small>{profile.email}</small></td>
+                  <td>{profile.department || "Not provided"}</td>
+                  <td><span className="status">{roleToLabel(profile.role)}</span></td>
+                  <td>
+                    {profile.role === "admin" ? (
+                      <span className="role-lock">Only admin</span>
+                    ) : (
+                      <select value={profile.role} onChange={(event) => onRoleChange(profile.id, event.target.value)}>
+                        <option value="viewer">Viewer</option>
+                        <option value="stakeholder">Stakeholder / Project Officer</option>
+                      </select>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
   );
 }
 

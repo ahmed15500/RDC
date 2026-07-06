@@ -128,6 +128,16 @@ export async function updateProfileRole(userId, role) {
   return data;
 }
 
+export async function inviteUser({ email, name = "", department = "" }) {
+  const { data, error } = await supabase.functions.invoke("invite-user", {
+    body: { email, name, department },
+  });
+
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 export async function submitActivity(formData) {
   const {
     data: { user },

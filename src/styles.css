@@ -285,6 +285,19 @@ textarea {
     white;
 }
 
+.invite-form {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  align-items: end;
+  margin-top: 18px;
+}
+
+.invite-form button {
+  min-height: 45px;
+  white-space: nowrap;
+}
+
 .auth-error {
   color: #9c1632;
   border: 1px solid rgba(156, 22, 50, 0.18);
@@ -1542,7 +1555,8 @@ label small {
   .project-row,
   .project-kpi-grid,
   .data-card,
-  .filters {
+  .filters,
+  .invite-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1578,6 +1592,7 @@ label small {
   .admin-action-row,
   .data-card,
   .filters,
+  .invite-form,
   .login-page,
   .pillar-orbit {
     grid-template-columns: 1fr;
