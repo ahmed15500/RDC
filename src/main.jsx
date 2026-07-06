@@ -179,6 +179,18 @@ const activityMetricDefaults = {
   Other: ["Basic reach"],
 };
 
+const evidenceFields = [
+  ["photos", "Photos"],
+  ["videos", "Videos"],
+  ["attendanceSheets", "Attendance sheets"],
+  ["reports", "Reports"],
+  ["beneficiaryLists", "Beneficiary lists"],
+  ["trainingMaterials", "Training materials"],
+  ["mediaCoverage", "Media coverage"],
+  ["driveLink", "Google Drive folder link"],
+  ["otherEvidence", "Other evidence links"],
+];
+
 function recommendedMetricGroups(activityType) {
   return activityMetricDefaults[activityType] || activityMetricDefaults.Other;
 }
@@ -939,8 +951,10 @@ function UserManagement({ profiles, onRoleChange, onRefresh }) {
 }
 
 function SubmissionForm({ onSubmit, initial, role }) {
-  const [form, setForm] = useState(() => initial ? activityToForm(initial) : blankSubmission);
+  const initialForm = useMemo(() => initial ? activityToForm(initial) : blankSubmission, [initial]);
+  const [form, setForm] = useState(initialForm);
   const [selectedMetricGroups, setSelectedMetricGroups] = useState(() => recommendedMetricGroups(initial?.activityType || blankSubmission.activityType));
+  const [selectedEvidenceFields, setSelectedEvidenceFields] = useState(() => evidenceFields.filter(([key]) => initialForm[key]).map(([key]) => key));
   const [showAllMetrics, setShowAllMetrics] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -960,6 +974,9 @@ function SubmissionForm({ onSubmit, initial, role }) {
   }
   function toggleMetricGroup(group) {
     setSelectedMetricGroups((current) => current.includes(group) ? current.filter((item) => item !== group) : [...current, group]);
+  }
+  function toggleEvidenceField(key) {
+    setSelectedEvidenceFields((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
   }
   async function handleSubmit(event) {
     event.preventDefault();
@@ -985,6 +1002,7 @@ function SubmissionForm({ onSubmit, initial, role }) {
         societyDescription: form.pillars.includes("Society") ? form.societyDescription : "",
         cultureDescription: form.pillars.includes("Culture") ? form.cultureDescription : "",
         economyDescription: form.pillars.includes("Economy") ? form.economyDescription : "",
+        ...Object.fromEntries(evidenceFields.map(([key]) => [key, selectedEvidenceFields.includes(key) ? form[key] : ""])),
       });
       if (!initial) setForm(blankSubmission);
     } catch (error) {
@@ -1050,7 +1068,24 @@ function SubmissionForm({ onSubmit, initial, role }) {
       </FormSection>
       <FormSection title="D. SDG Mapping"><CheckboxGroup values={SDGS.map((s) => `${s.number}: ${s.name}`)} selected={form.sdgs.map(String)} onToggle={(value) => toggleList("sdgs", value.split(":")[0])} /><Field label="Other SDG" value={form.otherSdg} onChange={(v) => update("otherSdg", v)} /></FormSection>
       <FormSection title="E. Qualitative Impact">{["keyOutcome:Key outcome", "success:Most important success", "challenge:Main challenge", "lessonsLearned:Lessons learned", "testimonial:Human story / testimonial", "beneficiaryQuote:Quote from beneficiary", "beforeAfter:Before and after change", "futureOpportunity:Future opportunity", "supportNeeded:Support needed for scaling"].map((entry) => { const [key, label] = entry.split(":"); return <TextArea key={key} label={label} value={form[key]} onChange={(v) => update(key, v)} />; })}</FormSection>
-      <FormSection title="F. Evidence and Documentation">{["photos:Photos", "videos:Videos", "attendanceSheets:Attendance sheets", "reports:Reports", "beneficiaryLists:Beneficiary lists", "trainingMaterials:Training materials", "mediaCoverage:Media coverage", "driveLink:Google Drive folder link", "otherEvidence:Other evidence links"].map((entry) => { const [key, label] = entry.split(":"); return <Field key={key} label={label} value={form[key]} onChange={(v) => update(key, v)} />; })}</FormSection>
+      <FormSection title="F. Evidence and Documentation">
+        <div className="metric-intro span-2">
+          <strong>Select available evidence</strong>
+          <p>Only choose the documentation types you have. The related link fields will appear below.</p>
+        </div>
+        <div className="metric-groups span-2">
+          {evidenceFields.map(([key, label]) => (
+            <label key={key}>
+              <input type="checkbox" checked={selectedEvidenceFields.includes(key)} onChange={() => toggleEvidenceField(key)} />
+              {label}
+            </label>
+          ))}
+        </div>
+        {!selectedEvidenceFields.length && <div className="metric-intro span-2"><strong>No evidence selected yet</strong><p>Select one or more evidence types if supporting documentation is available.</p></div>}
+        {evidenceFields
+          .filter(([key]) => selectedEvidenceFields.includes(key))
+          .map(([key, label]) => <Field key={key} label={label} value={form[key]} onChange={(v) => update(key, v)} />)}
+      </FormSection>
       <FormSection title="G. Data Validation"><SelectField label="Data confirmed?" value={form.dataConfirmed} options={["Yes", "No", "Needs review"]} onChange={(v) => update("dataConfirmed", v)} /><Field label="Source of data" value={form.dataSource} onChange={(v) => update("dataSource", v)} /><Field label="Submitted by" value={form.submittedBy} onChange={(v) => update("submittedBy", v)} /><Field label="Submission date" type="date" value={form.submissionDate} onChange={(v) => update("submissionDate", v)} /><TextArea label="Admin notes" value={form.adminNotes} onChange={(v) => update("adminNotes", v)} /><SelectField label="Approval status" value={form.approvalStatus} options={["Pending", "Approved", "Needs revision", "Rejected"]} onChange={(v) => update("approvalStatus", v)} /></FormSection>
       {submitError && <div className="auth-error">{submitError}</div>}
       <button className="primary submit-button" disabled={disabled || submitting}>{submitting ? "Submitting..." : initial ? "Save changes" : "Submit impact data"}</button>
