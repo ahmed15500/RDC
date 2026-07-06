@@ -930,6 +930,11 @@ function ReportsPage({ summaries, activities, onExport }) {
         </article>
       </div>
 
+      <div className="report-preview-label screen-report-tools">
+        <strong>PDF preview</strong>
+        <span>This is the document that will be printed or saved as PDF.</span>
+      </div>
+
       <article className="print-report">
         <header className="print-cover">
           <img src={rdcLogo} alt="Heliopolis University Rural Development Center logo" />

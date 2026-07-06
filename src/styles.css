@@ -710,12 +710,29 @@ blockquote cite {
 }
 
 .print-report {
-  display: none;
-  padding: 34px;
+  display: block;
+  width: min(100%, 920px);
+  margin: 0 auto;
+  padding: 42px;
   border: 1px solid rgba(36, 43, 120, 0.1);
-  border-radius: 28px;
+  border-radius: 10px;
   background: white;
-  box-shadow: var(--shadow);
+  box-shadow: 0 28px 80px rgba(20, 30, 84, 0.16);
+}
+
+.report-preview-label {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: center;
+  color: var(--navy);
+  font-weight: 900;
+}
+
+.report-preview-label span {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
 .print-cover {
@@ -794,6 +811,7 @@ blockquote cite {
 
 .print-table {
   min-width: 0;
+  table-layout: fixed;
   font-size: 0.82rem;
 }
 
@@ -804,6 +822,8 @@ blockquote cite {
 
 .print-table td {
   color: var(--ink);
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .filters {
@@ -1107,54 +1127,59 @@ label small {
 
 @media print {
   @page {
+    size: A4;
     margin: 12mm;
   }
 
   html,
   body {
     background: white !important;
+    width: 210mm;
+    min-height: 297mm;
   }
 
-  .sidebar,
-  .sidebar-scrim,
-  .top-actions,
-  .role-notice,
-  .app-message,
-  .screen-report-tools,
-  button {
-    display: none !important;
+  body * {
+    visibility: hidden !important;
   }
 
-  .app-shell {
-    display: block;
-  }
-
-  .workspace {
-    padding: 0;
-  }
-
-  .topbar {
-    display: none;
-  }
-
-  .reports-page {
-    display: block;
+  .print-report,
+  .print-report * {
+    visibility: visible !important;
   }
 
   .print-report {
-    display: block;
+    position: absolute;
+    inset: 0 auto auto 0;
+    display: block !important;
+    width: 100%;
+    margin: 0;
     padding: 0;
     border: 0;
     border-radius: 0;
     box-shadow: none;
   }
 
-  .panel,
-  .kpi-card,
-  .hero-panel,
-  .transformation-panel {
-    box-shadow: none;
-    break-inside: avoid;
+  .print-cover {
+    grid-template-columns: 105px 1fr;
+    gap: 18px;
+    padding-bottom: 14px;
+    border-bottom-width: 3px;
+  }
+
+  .print-cover img {
+    width: 105px;
+  }
+
+  .print-cover h2 {
+    font-size: 24pt;
+  }
+
+  .print-cover p,
+  .print-cover span,
+  .print-section p,
+  .print-table,
+  .print-kpis span {
+    font-size: 9pt;
   }
 
   .print-section,
@@ -1164,18 +1189,49 @@ label small {
     break-inside: avoid;
   }
 
+  .print-section {
+    margin-top: 14px;
+  }
+
+  .print-section h3 {
+    margin-bottom: 7px;
+    font-size: 13pt;
+  }
+
   .print-kpis {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .print-kpis div {
+    padding: 7px;
+    border-radius: 6px;
+    background: #f4f6ff !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .print-kpis strong {
+    font-size: 13pt;
   }
 
   .print-table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 8pt;
   }
 
   .print-table th,
   .print-table td {
-    padding: 7px 8px;
+    padding: 5px 6px;
     border: 1px solid #d7dced;
+  }
+
+  .print-table th {
+    color: white !important;
+    background: var(--navy) !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 }
