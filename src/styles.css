@@ -581,6 +581,75 @@ td small {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
+.village-overview .panel-heading span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.village-summary-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.village-summary-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: linear-gradient(145deg, #ffffff, #f7f8ff);
+}
+
+.village-summary-card h4 {
+  margin: 0;
+  color: var(--navy);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.15rem;
+}
+
+.village-summary-card p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.village-metrics {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.village-metrics span {
+  padding: 10px;
+  border-radius: 14px;
+  background: white;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.village-metrics strong {
+  display: block;
+  color: var(--navy);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.35rem;
+}
+
+.village-tags {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.village-tags b {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tag) 12%, white);
+  color: var(--tag);
+  font-size: 0.78rem;
+}
+
 .village-card p,
 .project-row p,
 .pillar-card p,

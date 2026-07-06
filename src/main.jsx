@@ -843,18 +843,52 @@ function ApprovalTable({ activities, updateApproval, role }) {
 }
 
 function VillageDashboard({ summaries }) {
-  const villageChartRows = summaries.byVillage.filter((row) => row.activities > 0);
+  const villageRows = summaries.byVillage
+    .filter((row) => row.activities > 0)
+    .sort((a, b) => b.activities - a.activities || b.beneficiaries - a.beneficiaries);
+
   return (
     <section className="stack">
-      <div className="grid two">
-        <ChartPanel title="Activities by village"><ResponsiveContainer width="100%" height={420}><BarChart data={villageChartRows} layout="vertical" margin={{ left: 18, right: 18 }}><CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" allowDecimals={false} /><YAxis type="category" dataKey="village" width={145} tick={{ fontSize: 12 }} /><Tooltip /><Bar dataKey="activities" name="Activities" fill="#1d9a69" radius={[0, 8, 8, 0]} /></BarChart></ResponsiveContainer></ChartPanel>
-        <ChartPanel title="Pillar coverage by village"><ResponsiveContainer width="100%" height={420}><BarChart data={villageChartRows.map((row) => ({ ...row, pillarCount: row.pillars.length }))} layout="vertical" margin={{ left: 18, right: 18 }}><CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" allowDecimals={false} domain={[0, 4]} /><YAxis type="category" dataKey="village" width={145} tick={{ fontSize: 12 }} /><Tooltip /><Bar dataKey="pillarCount" name="Pillars covered" fill="#e2a223" radius={[0, 8, 8, 0]} /></BarChart></ResponsiveContainer></ChartPanel>
-      </div>
-      <div className="village-grid">{summaries.byVillage.map((v) => <article className="panel village-card" key={v.village}><h3>{v.village}</h3><p><strong>{v.activities}</strong> activities · <strong>{formatNumber(v.beneficiaries)}</strong> beneficiaries</p><p>Projects: {v.projects.join(", ") || "No sample records yet"}</p><p>Pillars: {v.pillars.join(", ") || "None"}</p><p>SDGs: {v.sdgs.join(", ") || "None"}</p><p>Main outcomes: {v.outcomes.join(" | ") || "Pending field data"}</p><p>Challenges: {v.challenges.join(" | ") || "Pending validation"}</p></article>)}</div>
+      <article className="panel village-overview">
+        <div className="panel-heading">
+          <h3>Village impact summary</h3>
+          <span>{villageRows.length} villages with recorded activity</span>
+        </div>
+        <div className="village-summary-grid">
+          {villageRows.map((v) => (
+            <article className="village-summary-card" key={v.village}>
+              <div>
+                <h4>{v.village}</h4>
+                <p>{v.projects.join(", ") || "No projects recorded"}</p>
+              </div>
+              <div className="village-metrics">
+                <span><strong>{v.activities}</strong> activities</span>
+                <span><strong>{formatNumber(v.beneficiaries)}</strong> beneficiaries</span>
+                <span><strong>{v.pillars.length}</strong> pillars</span>
+                <span><strong>{v.sdgs.length}</strong> SDGs</span>
+              </div>
+              <div className="village-tags">
+                {v.pillars.map((pillar) => <b key={pillar} style={{ "--tag": pillarColors[pillar] }}>{pillar}</b>)}
+              </div>
+            </article>
+          ))}
+        </div>
+      </article>
+
+      <article className="panel">
+        <h3>Village details</h3>
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>Village</th><th>Activities</th><th>Beneficiaries</th><th>Projects</th><th>Pillars</th><th>SDGs</th><th>Main outcomes</th></tr></thead>
+            <tbody>
+              {villageRows.map((v) => <tr key={v.village}><td><strong>{v.village}</strong></td><td>{v.activities}</td><td>{formatNumber(v.beneficiaries)}</td><td>{v.projects.join(", ") || "None"}</td><td>{v.pillars.join(", ") || "None"}</td><td>{v.sdgs.join(", ") || "None"}</td><td>{v.outcomes.join(" | ") || "Pending field data"}</td></tr>)}
+            </tbody>
+          </table>
+        </div>
+      </article>
     </section>
   );
 }
-
 function ProjectDashboard({ summaries }) {
   return <section className="project-list">{summaries.byProject.map((p) => <article className="panel project-row" key={p.type}><div><h3>{p.type}</h3><p>{p.activities} activities · {formatNumber(p.beneficiaries)} beneficiaries · {p.villages.length} villages</p></div><div><strong>Target groups</strong><p>{p.targetGroups.join(", ")}</p></div><div><strong>Pillars</strong><p>{p.pillars.join(", ")}</p></div><div><strong>Future opportunities</strong><p>{p.opportunities.slice(0, 2).join(" | ") || "To be defined"}</p></div></article>)}</section>;
 }
