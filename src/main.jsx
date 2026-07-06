@@ -6,7 +6,6 @@ import {
   ClipboardCheck,
   Database,
   Download,
-  FileText,
   Globe2,
   Home,
   Layers3,
@@ -844,11 +843,12 @@ function ApprovalTable({ activities, updateApproval, role }) {
 }
 
 function VillageDashboard({ summaries }) {
+  const villageChartRows = summaries.byVillage.filter((row) => row.activities > 0);
   return (
     <section className="stack">
       <div className="grid two">
-        <ChartPanel title="Activities by village"><ResponsiveContainer width="100%" height={300}><BarChart data={summaries.byVillage}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="village" hide /><YAxis /><Tooltip /><Bar dataKey="activities" fill="#1d9a69" /></BarChart></ResponsiveContainer></ChartPanel>
-        <ChartPanel title="Pillar coverage by village"><ResponsiveContainer width="100%" height={300}><BarChart data={summaries.byVillage}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="village" hide /><YAxis /><Tooltip /><Bar dataKey={(row) => row.pillars.length} name="Pillars covered" fill="#e2a223" /></BarChart></ResponsiveContainer></ChartPanel>
+        <ChartPanel title="Activities by village"><ResponsiveContainer width="100%" height={420}><BarChart data={villageChartRows} layout="vertical" margin={{ left: 18, right: 18 }}><CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" allowDecimals={false} /><YAxis type="category" dataKey="village" width={145} tick={{ fontSize: 12 }} /><Tooltip /><Bar dataKey="activities" name="Activities" fill="#1d9a69" radius={[0, 8, 8, 0]} /></BarChart></ResponsiveContainer></ChartPanel>
+        <ChartPanel title="Pillar coverage by village"><ResponsiveContainer width="100%" height={420}><BarChart data={villageChartRows.map((row) => ({ ...row, pillarCount: row.pillars.length }))} layout="vertical" margin={{ left: 18, right: 18 }}><CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" allowDecimals={false} domain={[0, 4]} /><YAxis type="category" dataKey="village" width={145} tick={{ fontSize: 12 }} /><Tooltip /><Bar dataKey="pillarCount" name="Pillars covered" fill="#e2a223" radius={[0, 8, 8, 0]} /></BarChart></ResponsiveContainer></ChartPanel>
       </div>
       <div className="village-grid">{summaries.byVillage.map((v) => <article className="panel village-card" key={v.village}><h3>{v.village}</h3><p><strong>{v.activities}</strong> activities · <strong>{formatNumber(v.beneficiaries)}</strong> beneficiaries</p><p>Projects: {v.projects.join(", ") || "No sample records yet"}</p><p>Pillars: {v.pillars.join(", ") || "None"}</p><p>SDGs: {v.sdgs.join(", ") || "None"}</p><p>Main outcomes: {v.outcomes.join(" | ") || "Pending field data"}</p><p>Challenges: {v.challenges.join(" | ") || "Pending validation"}</p></article>)}</div>
     </section>
@@ -898,7 +898,6 @@ function TransformationDashboard({ summaries, activities }) {
 }
 
 function ReportsPage({ summaries, activities, onExport }) {
-  const reportTypes = ["Excel file of all data", "PDF impact report", "Village-level report", "Project-level report", "SDG mapping report", "Sustainability pillars report", "Conference summary", "Sustainability Week exhibition summary"];
   const summary = `RDC reached ${summaries.kpis.villages} villages through ${summaries.kpis.activities} recorded activities, serving ${formatNumber(summaries.kpis.direct)} direct beneficiaries and ${formatNumber(summaries.kpis.indirect)} indirect beneficiaries. The evidence base shows contribution across Ecology, Society, Culture, and Economy, with strong links to ${summaries.bySdg.length} SDGs and ${formatNumber(summaries.kpis.trainings)} trainings or workshops.`;
   const keyKpis = [
     ["Villages reached", summaries.kpis.villages],
@@ -916,23 +915,15 @@ function ReportsPage({ summaries, activities, onExport }) {
   ];
   return (
     <section className="reports-page">
-      <div className="grid two screen-report-tools">
-        <article className="panel">
-          <h3>Auto-written executive summary</h3>
-          <p className="summary-text">{summary}</p>
-          <button className="primary" onClick={onExport}>Export Excel-compatible CSV</button>
-          <button className="secondary" onClick={() => window.print()}>Export PDF / print report</button>
-        </article>
-        <article className="panel">
-          <h3>Report formats</h3>
-          {reportTypes.map((type) => <div className="report-row" key={type}><FileText size={18} /><span>{type}</span><button onClick={type.includes("Excel") ? onExport : () => window.print()}>Generate</button></div>)}
-          <small>{activities.length} activities included in current report dataset.</small>
-        </article>
-      </div>
-
-      <div className="report-preview-label screen-report-tools">
-        <strong>PDF preview</strong>
-        <span>This is the document that will be printed or saved as PDF.</span>
+      <div className="report-actions-bar screen-report-tools">
+        <div>
+          <strong>PDF impact report preview</strong>
+          <span>{activities.length} activities included in the current dataset.</span>
+        </div>
+        <div>
+          <button className="secondary" onClick={onExport}>Export Excel CSV</button>
+          <button className="primary" onClick={() => window.print()}>Save / print PDF</button>
+        </div>
       </div>
 
       <article className="print-report">
