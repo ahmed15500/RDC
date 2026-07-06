@@ -947,6 +947,16 @@ function ReportsPage({ summaries, activities, onExport }) {
     ["Waste collected kg", summaries.kpis.wasteCollected],
     ["Trainings", summaries.kpis.trainings],
   ];
+  const reportDate = new Intl.DateTimeFormat("en-GB", { dateStyle: "long" }).format(new Date());
+  const pillarMax = Math.max(...summaries.byPillar.map((row) => row.beneficiaries), 1);
+  const villageRows = summaries.byVillage
+    .filter((row) => row.activities > 0)
+    .sort((a, b) => b.beneficiaries - a.beneficiaries)
+    .slice(0, 10);
+  const villageMax = Math.max(...villageRows.map((row) => row.beneficiaries), 1);
+  const activityStories = activities
+    .filter((activity) => activity.qualitative.keyOutcome || activity.qualitative.success || activity.qualitative.futureOpportunity)
+    .slice(0, 6);
   return (
     <section className="reports-page">
       <div className="report-actions-bar screen-report-tools">
@@ -966,11 +976,11 @@ function ReportsPage({ summaries, activities, onExport }) {
           <div>
             <h2>RDC Integrated Impact Report</h2>
             <p>Rural Development Center, Heliopolis University</p>
-            <span>Generated from validated dashboard data</span>
+            <span>Generated {reportDate} from dashboard data</span>
           </div>
         </header>
 
-        <section className="print-section">
+        <section className="print-section report-lead">
           <h3>Executive Summary</h3>
           <p>{summary}</p>
         </section>
@@ -980,24 +990,63 @@ function ReportsPage({ summaries, activities, onExport }) {
           <div className="print-kpis">{keyKpis.map(([label, value]) => <div key={label}><strong>{formatNumber(value)}</strong><span>{label}</span></div>)}</div>
         </section>
 
-        <section className="print-section">
-          <h3>Impact by Sustainability Pillar</h3>
-          <table className="print-table"><thead><tr><th>Pillar</th><th>Activities</th><th>Beneficiaries</th><th>Villages</th><th>Main outcomes</th></tr></thead><tbody>{summaries.byPillar.map((row) => <tr key={row.pillar}><td>{row.pillar}</td><td>{row.activities}</td><td>{formatNumber(row.beneficiaries)}</td><td>{row.villages}</td><td>{row.outcomes.join(" | ") || "Pending outcomes"}</td></tr>)}</tbody></table>
+        <section className="print-section report-visual-section">
+          <h3>Sustainability Pillar Contribution</h3>
+          <div className="report-pillar-bars">
+            {summaries.byPillar.map((row) => (
+              <div className="report-bar-row" key={row.pillar} style={{ "--bar": pillarColors[row.pillar], "--width": `${Math.max(4, (row.beneficiaries / pillarMax) * 100)}%` }}>
+                <div className="report-bar-label"><strong>{row.pillar}</strong><span>{row.activities} activities · {row.villages} villages</span></div>
+                <div className="report-bar-track"><span /></div>
+                <b>{formatNumber(row.beneficiaries)}</b>
+              </div>
+            ))}
+          </div>
         </section>
 
-        <section className="print-section">
-          <h3>Village Summary</h3>
-          <table className="print-table"><thead><tr><th>Village</th><th>Activities</th><th>Beneficiaries</th><th>Pillars</th><th>SDGs</th></tr></thead><tbody>{summaries.byVillage.filter((row) => row.activities > 0).map((row) => <tr key={row.village}><td>{row.village}</td><td>{row.activities}</td><td>{formatNumber(row.beneficiaries)}</td><td>{row.pillars.join(", ")}</td><td>{row.sdgs.join(", ")}</td></tr>)}</tbody></table>
+        <section className="print-section report-visual-section">
+          <h3>Village Reach Ranking</h3>
+          <div className="report-village-bars">
+            {villageRows.map((row) => (
+              <div className="report-village-row" key={row.village} style={{ "--width": `${Math.max(5, (row.beneficiaries / villageMax) * 100)}%` }}>
+                <strong>{row.village}</strong>
+                <div><span /></div>
+                <b>{formatNumber(row.beneficiaries)} beneficiaries</b>
+                <em>{row.activities} activities · {row.pillars.length} pillars · {row.sdgs.length} SDGs</em>
+              </div>
+            ))}
+          </div>
         </section>
 
-        <section className="print-section">
+        <section className="print-section report-visual-section">
           <h3>SDG Contribution</h3>
-          <table className="print-table"><thead><tr><th>SDG</th><th>Name</th><th>Activities</th><th>Beneficiaries</th><th>Villages</th></tr></thead><tbody>{summaries.bySdg.map((row) => <tr key={row.number}><td>SDG {row.number}</td><td>{row.name}</td><td>{row.activities}</td><td>{formatNumber(row.beneficiaries)}</td><td>{row.villages.join(", ")}</td></tr>)}</tbody></table>
+          <div className="report-sdg-grid">
+            {summaries.bySdg.map((row) => (
+              <div key={row.number}>
+                <strong>SDG {row.number}</strong>
+                <span>{row.name}</span>
+                <b>{row.activities} activities</b>
+                <em>{formatNumber(row.beneficiaries)} beneficiaries</em>
+              </div>
+            ))}
+          </div>
         </section>
 
         <section className="print-section">
-          <h3>Recent Activities</h3>
-          <table className="print-table"><thead><tr><th>Activity</th><th>Project</th><th>Village</th><th>Status</th><th>Outcome</th></tr></thead><tbody>{activities.slice(0, 12).map((activity) => <tr key={activity.id}><td>{activity.activityName}</td><td>{activity.projectName}</td><td>{activity.villages.join(", ")}</td><td>{activity.validation.approvalStatus}</td><td>{activity.qualitative.keyOutcome}</td></tr>)}</tbody></table>
+          <h3>Representative Activity Outcomes</h3>
+          <div className="report-activity-grid">
+            {activityStories.map((activity) => (
+              <article key={activity.id}>
+                <strong>{activity.activityName}</strong>
+                <span>{activity.projectName} · {activity.villages.join(", ")}</span>
+                <p>{activity.qualitative.keyOutcome || activity.qualitative.success || activity.qualitative.futureOpportunity}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="print-section report-appendix">
+          <h3>Activity Appendix</h3>
+          <table className="print-table"><thead><tr><th>Activity</th><th>Type</th><th>Village</th><th>Status</th><th>Direct</th><th>Indirect</th></tr></thead><tbody>{activities.slice(0, 18).map((activity) => <tr key={activity.id}><td>{activity.activityName}</td><td>{activity.activityType}</td><td>{activity.villages.join(", ")}</td><td>{activity.validation.approvalStatus}</td><td>{formatNumber(activity.metrics.directBeneficiaries)}</td><td>{formatNumber(activity.metrics.indirectBeneficiaries)}</td></tr>)}</tbody></table>
         </section>
       </article>
     </section>
