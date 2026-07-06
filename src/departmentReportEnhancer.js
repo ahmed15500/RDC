@@ -2,30 +2,6 @@ import { supabase } from "./lib/supabaseClient";
 
 let departmentDataPromise = null;
 
-const metricFields = [
-  ["direct_beneficiaries", "Direct beneficiaries"],
-  ["indirect_beneficiaries", "Indirect beneficiaries"],
-  ["households", "Households"],
-  ["women", "Women"],
-  ["women_trained", "Women trained"],
-  ["youth", "Youth"],
-  ["children_students", "Children / students"],
-  ["farmers", "Farmers"],
-  ["schools", "Schools"],
-  ["teachers", "Teachers"],
-  ["volunteers", "Volunteers"],
-  ["community_events", "Community events"],
-  ["trainings", "Trainings"],
-  ["health_cases", "Health cases"],
-  ["waste_collected_kg", "Waste collected kg"],
-  ["waste_recycled_kg", "Waste recycled kg"],
-  ["waste_composted_kg", "Waste composted kg"],
-  ["trees_planted", "Trees / plants"],
-  ["income_generated", "Income generated"],
-  ["jobs_created", "Jobs created"],
-  ["products_sold", "Products sold"],
-];
-
 const css = `
   .department-report-panel {
     padding: 22px;
@@ -37,10 +13,10 @@ const css = `
   }
 
   .department-report-header {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) minmax(320px, 0.9fr);
     gap: 16px;
-    justify-content: space-between;
-    align-items: flex-end;
+    align-items: start;
     margin-bottom: 16px;
   }
 
@@ -50,16 +26,16 @@ const css = `
     font-family: "Space Grotesk", sans-serif;
   }
 
-  .department-report-header p {
+  .department-report-header p,
+  .department-selector-help {
     margin: 5px 0 0;
     color: var(--muted, #6a7188);
+    line-height: 1.6;
   }
 
   .department-report-controls {
     display: grid;
-    grid-template-columns: minmax(220px, 1fr) auto auto;
     gap: 10px;
-    align-items: end;
   }
 
   .department-report-controls label {
@@ -68,8 +44,42 @@ const css = `
     font-weight: 800;
   }
 
-  .department-report-controls select {
+  .department-report-controls input {
     margin-top: 6px;
+  }
+
+  .department-checkbox-list {
+    display: grid;
+    max-height: 230px;
+    overflow: auto;
+    gap: 7px;
+    padding: 10px;
+    border: 1px solid var(--line, #dde3ef);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.76);
+  }
+
+  .department-checkbox-list label {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 8px 10px;
+    color: var(--ink, #172033);
+    border-radius: 12px;
+    background: white;
+    font-size: 0.88rem;
+    font-weight: 800;
+  }
+
+  .department-checkbox-list input {
+    width: auto;
+    margin: 2px 0 0;
+  }
+
+  .department-control-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
   }
 
   .department-report-output {
@@ -236,10 +246,8 @@ const css = `
   @media (max-width: 900px) {
     .department-report-header,
     .department-two-col,
-    .department-report-controls,
     .department-kpi-grid {
       grid-template-columns: 1fr;
-      display: grid;
     }
   }
 `;
@@ -280,6 +288,10 @@ function selectedPillars(row) {
   ].filter(Boolean);
 }
 
+function departmentValue(profile) {
+  return profile.department || "No department recorded";
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -302,12 +314,10 @@ async function loadDepartmentData() {
     if (activityError) throw activityError;
 
     const profiles = profileRows || [];
-    const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
-    const departments = unique(profiles.map((profile) => profile.department || "No department recorded")).sort((a, b) => a.localeCompare(b));
+    const departments = unique(profiles.map(departmentValue)).sort((a, b) => a.localeCompare(b));
 
     return {
       profiles,
-      profileById,
       activities: activityRows || [],
       departments,
     };
@@ -316,8 +326,9 @@ async function loadDepartmentData() {
   return departmentDataPromise;
 }
 
-function buildDepartmentReport(data, department) {
-  const departmentProfiles = data.profiles.filter((profile) => (profile.department || "No department recorded") === department);
+function buildDepartmentReport(data, selectedDepartments, reportName) {
+  const selectedSet = new Set(selectedDepartments);
+  const departmentProfiles = data.profiles.filter((profile) => selectedSet.has(departmentValue(profile)));
   const profileIds = new Set(departmentProfiles.map((profile) => profile.id));
   const activities = data.activities.filter((activity) => profileIds.has(activity.submitted_by));
   const villages = unique(activities.map((activity) => splitVillage(activity.village)));
@@ -351,7 +362,8 @@ function buildDepartmentReport(data, department) {
   };
 
   return {
-    department,
+    title: reportName || selectedDepartments.join(" + "),
+    selectedDepartments,
     departmentProfiles,
     activities,
     villages,
@@ -370,13 +382,18 @@ function sum(rows, key) {
   return rows.reduce((total, row) => total + number(row[key]), 0);
 }
 
-function renderDepartmentOptions(select, departments) {
-  const selected = select.value;
-  select.innerHTML = `<option value="">Choose a department...</option>${departments
-    .map((department) => `<option value="${escapeHtml(department)}">${escapeHtml(department)}</option>`)
-    .join("")}`;
+function renderDepartmentCheckboxes(container, departments) {
+  const selected = new Set(getSelectedDepartments(container));
+  container.innerHTML = departments
+    .map((department) => {
+      const checked = selected.has(department) ? "checked" : "";
+      return `<label><input type="checkbox" value="${escapeHtml(department)}" ${checked} /> <span>${escapeHtml(department)}</span></label>`;
+    })
+    .join("");
+}
 
-  if (departments.includes(selected)) select.value = selected;
+function getSelectedDepartments(container) {
+  return [...container.querySelectorAll("input[type='checkbox']:checked")].map((input) => input.value);
 }
 
 function renderChipSection(title, items) {
@@ -397,6 +414,7 @@ function renderReport(output, report) {
   const kpis = [
     ["Activities", report.metrics.activities],
     ["Team members", report.metrics.users],
+    ["Department name variants", report.selectedDepartments.length],
     ["Villages", report.metrics.villages],
     ["Projects", report.metrics.projects],
     ["Direct beneficiaries", report.metrics.direct],
@@ -410,12 +428,12 @@ function renderReport(output, report) {
     ["Trainings", report.metrics.trainings],
     ["Health cases", report.metrics.healthCases],
     ["Waste kg", report.metrics.waste],
-  ].filter(([label, value]) => label === "Activities" || label === "Team members" || Number(value) > 0);
+  ].filter(([label, value]) => ["Activities", "Team members", "Department name variants"].includes(label) || Number(value) > 0);
 
   output.innerHTML = `
     <article class="department-report-cover">
-      <h2>${escapeHtml(report.department)} Department Impact Report</h2>
-      <p>Generated ${escapeHtml(generatedAt)} from RDC dashboard data. This report summarizes the department's submitted activities, villages served, beneficiaries, sustainability pillars, outcomes, and operational contribution.</p>
+      <h2>${escapeHtml(report.title)} Impact Report</h2>
+      <p>Generated ${escapeHtml(generatedAt)} from RDC dashboard data. This report combines the selected department name variants and summarizes their activities, villages, beneficiaries, sustainability impact, outcomes, and operational contribution.</p>
     </article>
 
     <div class="department-kpi-grid">
@@ -424,10 +442,11 @@ function renderReport(output, report) {
 
     <section class="department-report-section">
       <h4>Executive summary</h4>
-      <p>${escapeHtml(report.department)} recorded ${formatNumber(report.metrics.activities)} activities across ${formatNumber(report.metrics.villages)} villages, reaching ${formatNumber(totalBeneficiaries)} direct and indirect beneficiaries. The department contributed through ${formatNumber(report.metrics.projects)} projects and worked across ${report.pillars.length ? report.pillars.join(", ") : "pending pillar classification"}.</p>
+      <p>${escapeHtml(report.title)} recorded ${formatNumber(report.metrics.activities)} activities across ${formatNumber(report.metrics.villages)} villages, reaching ${formatNumber(totalBeneficiaries)} direct and indirect beneficiaries. This report merged ${formatNumber(report.selectedDepartments.length)} written department variant(s): ${escapeHtml(report.selectedDepartments.join(", "))}.</p>
     </section>
 
     <div class="department-two-col">
+      ${renderChipSection("Selected department variants", report.selectedDepartments)}
       ${renderChipSection("Team members", report.departmentProfiles.map((profile) => profile.name || profile.email))}
       ${renderChipSection("Villages covered", report.villages)}
       ${renderChipSection("Projects", report.projects)}
@@ -438,18 +457,19 @@ function renderReport(output, report) {
     </div>
 
     <div class="department-two-col">
-      ${renderListSection("Main outcomes / impact", report.outcomes, "No outcome text recorded yet for this department.")}
-      ${renderListSection("Challenges / learning points", report.challenges, "No challenges recorded yet for this department.")}
+      ${renderListSection("Main outcomes / impact", report.outcomes, "No outcome text recorded yet for this department group.")}
+      ${renderListSection("Challenges / learning points", report.challenges, "No challenges recorded yet for this department group.")}
     </div>
 
     <section class="department-report-section">
-      <h4>Activities by this department</h4>
+      <h4>Activities by this department group</h4>
       <div class="table-wrap">
         <table class="department-report-table">
           <thead>
             <tr>
               <th>Activity</th>
               <th>Submitted by</th>
+              <th>Written department</th>
               <th>Project / type</th>
               <th>Village</th>
               <th>Beneficiaries</th>
@@ -459,7 +479,7 @@ function renderReport(output, report) {
             </tr>
           </thead>
           <tbody>
-            ${report.activities.map((activity) => renderActivityRow(activity, report)).join("") || `<tr><td colspan="8">No activities are currently linked to users in this department.</td></tr>`}
+            ${report.activities.map((activity) => renderActivityRow(activity, report)).join("") || `<tr><td colspan="9">No activities are currently linked to users in the selected department names.</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -476,6 +496,7 @@ function renderActivityRow(activity, report) {
     <tr>
       <td><strong>${escapeHtml(activity.activity_name || "Untitled activity")}</strong><small>${escapeHtml(activity.date_period || "Date not recorded")}</small></td>
       <td>${escapeHtml(profile?.name || profile?.email || "Unknown user")}</td>
+      <td>${escapeHtml(departmentValue(profile || {}))}</td>
       <td>${escapeHtml(activity.project_name || "Untitled project")}<small>${escapeHtml(activity.activity_type || "Other")}</small></td>
       <td>${escapeHtml(activity.village || "Not recorded")}</td>
       <td>${formatNumber(beneficiaries)}</td>
@@ -487,9 +508,12 @@ function renderActivityRow(activity, report) {
 }
 
 async function initializeDepartmentReport(panel) {
-  const select = panel.querySelector(".department-select");
+  const checkboxList = panel.querySelector(".department-checkbox-list");
+  const reportNameInput = panel.querySelector(".department-report-name");
   const output = panel.querySelector(".department-report-output");
   const refreshButton = panel.querySelector(".department-refresh-button");
+  const generateButton = panel.querySelector(".department-generate-button");
+  const clearButton = panel.querySelector(".department-clear-button");
   const printButton = panel.querySelector(".department-print-button");
 
   output.innerHTML = `<div class="department-report-note">Loading departments from Supabase...</div>`;
@@ -497,31 +521,38 @@ async function initializeDepartmentReport(panel) {
   async function loadAndRenderOptions() {
     departmentDataPromise = null;
     const data = await loadDepartmentData();
-    renderDepartmentOptions(select, data.departments);
-    output.innerHTML = `<div class="department-report-note">Choose a department to generate its activity report.</div>`;
+    renderDepartmentCheckboxes(checkboxList, data.departments);
+    output.innerHTML = `<div class="department-report-note">Select one or more department name variants, then generate the report. Use this when the same department was written in different ways.</div>`;
   }
 
   await loadAndRenderOptions().catch((error) => {
     output.innerHTML = `<div class="department-report-note">${escapeHtml(error.message || "Could not load department data.")}</div>`;
   });
 
-  select.addEventListener("change", async () => {
-    const department = select.value;
-    if (!department) {
-      output.innerHTML = `<div class="department-report-note">Choose a department to generate its activity report.</div>`;
+  generateButton.addEventListener("click", async () => {
+    const selectedDepartments = getSelectedDepartments(checkboxList);
+    if (!selectedDepartments.length) {
+      output.innerHTML = `<div class="department-report-note">Select at least one department name.</div>`;
       return;
     }
 
-    output.innerHTML = `<div class="department-report-note">Generating report...</div>`;
+    output.innerHTML = `<div class="department-report-note">Generating combined department report...</div>`;
     try {
       const data = await loadDepartmentData();
-      renderReport(output, buildDepartmentReport(data, department));
+      renderReport(output, buildDepartmentReport(data, selectedDepartments, reportNameInput.value.trim()));
     } catch (error) {
       output.innerHTML = `<div class="department-report-note">${escapeHtml(error.message || "Could not generate report.")}</div>`;
     }
   });
 
   refreshButton.addEventListener("click", () => loadAndRenderOptions());
+  clearButton.addEventListener("click", () => {
+    checkboxList.querySelectorAll("input[type='checkbox']").forEach((input) => {
+      input.checked = false;
+    });
+    reportNameInput.value = "";
+    output.innerHTML = `<div class="department-report-note">Selection cleared. Choose one or more department name variants to generate a report.</div>`;
+  });
   printButton.addEventListener("click", () => window.print());
 }
 
@@ -535,14 +566,23 @@ function injectDepartmentReportPanel() {
     <div class="department-report-header">
       <div>
         <h3>Department activity report</h3>
-        <p>Select a department to generate a report with its activities, villages, beneficiaries, sustainability impact, outcomes, and submitted evidence.</p>
+        <p>Select one or more written department names and generate one combined report. This handles spelling differences such as the same department entered with different names.</p>
       </div>
       <div class="department-report-controls">
-        <label>Department
-          <select class="department-select"><option value="">Loading...</option></select>
+        <label>Report name
+          <input class="department-report-name" placeholder="Example: Rural Development Department" />
         </label>
-        <button type="button" class="secondary department-refresh-button">Refresh</button>
-        <button type="button" class="primary department-print-button">Print report</button>
+        <div>
+          <strong>Department names to combine</strong>
+          <p class="department-selector-help">Tick all names that should be treated as the same department.</p>
+          <div class="department-checkbox-list">Loading...</div>
+        </div>
+        <div class="department-control-buttons">
+          <button type="button" class="primary department-generate-button">Generate report</button>
+          <button type="button" class="secondary department-refresh-button">Refresh</button>
+          <button type="button" class="secondary department-clear-button">Clear</button>
+          <button type="button" class="secondary department-print-button">Print report</button>
+        </div>
       </div>
     </div>
     <div class="department-report-output"></div>
