@@ -930,6 +930,20 @@ function ProjectDetailPage({ project, activities, role, onBack, onExport, onEdit
   const challenges = projectActivities.map((activity) => activity.qualitative.challenge).filter(Boolean);
   const opportunities = projectActivities.map((activity) => activity.qualitative.futureOpportunity).filter(Boolean);
   const firstActivity = projectActivities[0];
+  const keyNumbers = [
+    ["Activities", projectActivities.length],
+    ["Total beneficiaries", direct + indirect],
+    ["Villages", villages.length],
+    ["Schools", projectActivities.reduce((total, activity) => total + Number(activity.metrics.schools || 0), 0)],
+    ["Households", projectActivities.reduce((total, activity) => total + Number(activity.metrics.households || 0), 0)],
+    ["Volunteers", projectActivities.reduce((total, activity) => total + Number(activity.metrics.volunteers || 0), 0)],
+    ["Women", projectActivities.reduce((total, activity) => total + Number(activity.metrics.women || 0), 0)],
+    ["Youth", projectActivities.reduce((total, activity) => total + Number(activity.metrics.youth || 0), 0)],
+    ["Farmers", projectActivities.reduce((total, activity) => total + Number(activity.metrics.farmers || 0), 0)],
+    ["Health cases", projectActivities.reduce((total, activity) => total + Number(activity.metrics.healthCases || 0), 0)],
+    ["Waste collected kg", projectActivities.reduce((total, activity) => total + Number(activity.metrics.wasteCollectedKg || 0), 0)],
+    ["Trainings", projectActivities.reduce((total, activity) => total + Number(activity.metrics.trainings || 0), 0)],
+  ].filter(([, value]) => Number(value) > 0);
 
   return (
     <section className="project-detail stack">
@@ -957,12 +971,7 @@ function ProjectDetailPage({ project, activities, role, onBack, onExport, onEdit
       <article className="panel">
         <h3>Key Numbers</h3>
         <div className="project-kpi-grid">
-          <InfoMetric label="Activities" value={projectActivities.length} />
-          <InfoMetric label="Total beneficiaries" value={formatNumber(direct + indirect)} />
-          <InfoMetric label="Villages" value={villages.length} />
-          <InfoMetric label="Schools" value={formatNumber(projectActivities.reduce((total, activity) => total + Number(activity.metrics.schools || 0), 0))} />
-          <InfoMetric label="Households" value={formatNumber(projectActivities.reduce((total, activity) => total + Number(activity.metrics.households || 0), 0))} />
-          <InfoMetric label="Volunteers" value={formatNumber(projectActivities.reduce((total, activity) => total + Number(activity.metrics.volunteers || 0), 0))} />
+          {keyNumbers.map(([label, value]) => <InfoMetric key={label} label={label} value={formatNumber(value)} />)}
         </div>
       </article>
 
