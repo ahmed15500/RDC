@@ -900,7 +900,78 @@ function TransformationDashboard({ summaries, activities }) {
 function ReportsPage({ summaries, activities, onExport }) {
   const reportTypes = ["Excel file of all data", "PDF impact report", "Village-level report", "Project-level report", "SDG mapping report", "Sustainability pillars report", "Conference summary", "Sustainability Week exhibition summary"];
   const summary = `RDC reached ${summaries.kpis.villages} villages through ${summaries.kpis.activities} recorded activities, serving ${formatNumber(summaries.kpis.direct)} direct beneficiaries and ${formatNumber(summaries.kpis.indirect)} indirect beneficiaries. The evidence base shows contribution across Ecology, Society, Culture, and Economy, with strong links to ${summaries.bySdg.length} SDGs and ${formatNumber(summaries.kpis.trainings)} trainings or workshops.`;
-  return <section className="grid two"><article className="panel"><h3>Auto-written executive summary</h3><p className="summary-text">{summary}</p><button className="primary" onClick={onExport}>Export Excel-compatible CSV</button><button className="secondary" onClick={() => window.print()}>Export PDF / print report</button></article><article className="panel"><h3>Report formats</h3>{reportTypes.map((type) => <div className="report-row" key={type}><FileText size={18} /><span>{type}</span><button onClick={type.includes("Excel") ? onExport : () => window.print()}>Generate</button></div>)}<small>{activities.length} activities included in current report dataset.</small></article></section>;
+  const keyKpis = [
+    ["Villages reached", summaries.kpis.villages],
+    ["Activities", summaries.kpis.activities],
+    ["Direct beneficiaries", summaries.kpis.direct],
+    ["Indirect beneficiaries", summaries.kpis.indirect],
+    ["Households", summaries.kpis.households],
+    ["Women", summaries.kpis.women],
+    ["Youth", summaries.kpis.youth],
+    ["Children / students", summaries.kpis.children],
+    ["Farmers", summaries.kpis.farmers],
+    ["Health cases", summaries.kpis.healthCases],
+    ["Waste collected kg", summaries.kpis.wasteCollected],
+    ["Trainings", summaries.kpis.trainings],
+  ];
+  return (
+    <section className="reports-page">
+      <div className="grid two screen-report-tools">
+        <article className="panel">
+          <h3>Auto-written executive summary</h3>
+          <p className="summary-text">{summary}</p>
+          <button className="primary" onClick={onExport}>Export Excel-compatible CSV</button>
+          <button className="secondary" onClick={() => window.print()}>Export PDF / print report</button>
+        </article>
+        <article className="panel">
+          <h3>Report formats</h3>
+          {reportTypes.map((type) => <div className="report-row" key={type}><FileText size={18} /><span>{type}</span><button onClick={type.includes("Excel") ? onExport : () => window.print()}>Generate</button></div>)}
+          <small>{activities.length} activities included in current report dataset.</small>
+        </article>
+      </div>
+
+      <article className="print-report">
+        <header className="print-cover">
+          <img src={rdcLogo} alt="Heliopolis University Rural Development Center logo" />
+          <div>
+            <h2>RDC Integrated Impact Report</h2>
+            <p>Rural Development Center, Heliopolis University</p>
+            <span>Generated from validated dashboard data</span>
+          </div>
+        </header>
+
+        <section className="print-section">
+          <h3>Executive Summary</h3>
+          <p>{summary}</p>
+        </section>
+
+        <section className="print-section">
+          <h3>Key Results</h3>
+          <div className="print-kpis">{keyKpis.map(([label, value]) => <div key={label}><strong>{formatNumber(value)}</strong><span>{label}</span></div>)}</div>
+        </section>
+
+        <section className="print-section">
+          <h3>Impact by Sustainability Pillar</h3>
+          <table className="print-table"><thead><tr><th>Pillar</th><th>Activities</th><th>Beneficiaries</th><th>Villages</th><th>Main outcomes</th></tr></thead><tbody>{summaries.byPillar.map((row) => <tr key={row.pillar}><td>{row.pillar}</td><td>{row.activities}</td><td>{formatNumber(row.beneficiaries)}</td><td>{row.villages}</td><td>{row.outcomes.join(" | ") || "Pending outcomes"}</td></tr>)}</tbody></table>
+        </section>
+
+        <section className="print-section">
+          <h3>Village Summary</h3>
+          <table className="print-table"><thead><tr><th>Village</th><th>Activities</th><th>Beneficiaries</th><th>Pillars</th><th>SDGs</th></tr></thead><tbody>{summaries.byVillage.filter((row) => row.activities > 0).map((row) => <tr key={row.village}><td>{row.village}</td><td>{row.activities}</td><td>{formatNumber(row.beneficiaries)}</td><td>{row.pillars.join(", ")}</td><td>{row.sdgs.join(", ")}</td></tr>)}</tbody></table>
+        </section>
+
+        <section className="print-section">
+          <h3>SDG Contribution</h3>
+          <table className="print-table"><thead><tr><th>SDG</th><th>Name</th><th>Activities</th><th>Beneficiaries</th><th>Villages</th></tr></thead><tbody>{summaries.bySdg.map((row) => <tr key={row.number}><td>SDG {row.number}</td><td>{row.name}</td><td>{row.activities}</td><td>{formatNumber(row.beneficiaries)}</td><td>{row.villages.join(", ")}</td></tr>)}</tbody></table>
+        </section>
+
+        <section className="print-section">
+          <h3>Recent Activities</h3>
+          <table className="print-table"><thead><tr><th>Activity</th><th>Project</th><th>Village</th><th>Status</th><th>Outcome</th></tr></thead><tbody>{activities.slice(0, 12).map((activity) => <tr key={activity.id}><td>{activity.activityName}</td><td>{activity.projectName}</td><td>{activity.villages.join(", ")}</td><td>{activity.validation.approvalStatus}</td><td>{activity.qualitative.keyOutcome}</td></tr>)}</tbody></table>
+        </section>
+      </article>
+    </section>
+  );
 }
 
 function DataManagement({ activities, filters, setFilters, role, onEdit, onDelete, updateApproval }) {

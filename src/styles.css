@@ -704,6 +704,108 @@ blockquote cite {
   border-bottom: 1px solid var(--line);
 }
 
+.reports-page {
+  display: grid;
+  gap: 22px;
+}
+
+.print-report {
+  display: none;
+  padding: 34px;
+  border: 1px solid rgba(36, 43, 120, 0.1);
+  border-radius: 28px;
+  background: white;
+  box-shadow: var(--shadow);
+}
+
+.print-cover {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 24px;
+  align-items: center;
+  padding-bottom: 24px;
+  border-bottom: 4px solid var(--navy);
+}
+
+.print-cover img {
+  width: 150px;
+}
+
+.print-cover h2 {
+  margin: 0;
+  color: var(--navy);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 2.2rem;
+  letter-spacing: -0.04em;
+}
+
+.print-cover p,
+.print-cover span {
+  display: block;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.print-section {
+  margin-top: 24px;
+}
+
+.print-section h3 {
+  margin: 0 0 12px;
+  color: var(--navy);
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.print-section p {
+  color: var(--ink);
+  line-height: 1.7;
+}
+
+.print-kpis {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.print-kpis div {
+  padding: 12px;
+  border-left: 4px solid var(--orange);
+  border-radius: 12px;
+  background: #f7f8ff;
+}
+
+.print-kpis strong,
+.print-kpis span {
+  display: block;
+}
+
+.print-kpis strong {
+  color: var(--navy);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.4rem;
+}
+
+.print-kpis span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.print-table {
+  min-width: 0;
+  font-size: 0.82rem;
+}
+
+.print-table th {
+  color: white;
+  background: var(--navy);
+}
+
+.print-table td {
+  color: var(--ink);
+}
+
 .filters {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1004,9 +1106,21 @@ label small {
 }
 
 @media print {
+  @page {
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: white !important;
+  }
+
   .sidebar,
+  .sidebar-scrim,
   .top-actions,
   .role-notice,
+  .app-message,
+  .screen-report-tools,
   button {
     display: none !important;
   }
@@ -1015,11 +1129,53 @@ label small {
     display: block;
   }
 
+  .workspace {
+    padding: 0;
+  }
+
+  .topbar {
+    display: none;
+  }
+
+  .reports-page {
+    display: block;
+  }
+
+  .print-report {
+    display: block;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
   .panel,
   .kpi-card,
   .hero-panel,
   .transformation-panel {
     box-shadow: none;
     break-inside: avoid;
+  }
+
+  .print-section,
+  .print-cover,
+  .print-kpis div,
+  .print-table tr {
+    break-inside: avoid;
+  }
+
+  .print-kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .print-table th,
+  .print-table td {
+    padding: 7px 8px;
+    border: 1px solid #d7dced;
   }
 }
