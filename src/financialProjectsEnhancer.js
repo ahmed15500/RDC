@@ -1,6 +1,7 @@
 import { supabase } from "./lib/supabaseClient";
 
 let financialRowsCache = null;
+let availableYearsCache = null;
 let currentYear = 2026;
 
 const PORTFOLIO_OWNER = "HU";
@@ -99,6 +100,7 @@ const css = `
     flex-wrap: wrap;
     gap: 8px;
     justify-content: flex-end;
+    align-items: flex-end;
   }
 
   .financial-actions button,
@@ -118,6 +120,25 @@ const css = `
   .financial-secondary {
     background: #eef2f7;
     color: #26313d;
+  }
+
+  .financial-year-control {
+    display: grid;
+    gap: 5px;
+    min-width: 132px;
+    color: #5f6c7b;
+    font-size: 0.78rem;
+    font-weight: 900;
+  }
+
+  .financial-year-control select {
+    height: 38px;
+    padding: 8px 36px 8px 11px;
+    border: 1px solid #d8dee8;
+    border-radius: 10px;
+    background: white;
+    color: #26313d;
+    font-weight: 900;
   }
 
   .financial-dashboard-grid {
@@ -464,6 +485,15 @@ const css = `
       grid-column: span 1;
     }
 
+    .financial-actions {
+      grid-template-columns: 1fr 1fr;
+      display: grid;
+    }
+
+    .financial-year-control {
+      grid-column: 1 / -1;
+    }
+
     .financial-card {
       min-height: auto;
       padding: 14px;
@@ -532,6 +562,24 @@ function normalizeRow(row) {
   };
 }
 
+function normalizedAvailableYears() {
+  const years = new Set([currentYear, ...(availableYearsCache || [])]);
+  return [...years].filter(Boolean).sort((a, b) => b - a);
+}
+
+async function loadAvailableYears(force = false) {
+  if (availableYearsCache && !force) return availableYearsCache;
+  const { data, error } = await supabase
+    .from("financial_projects")
+    .select("project_year")
+    .order("project_year", { ascending: false });
+  if (error) throw error;
+  availableYearsCache = [...new Set((data || []).map((row) => Number(row.project_year || currentYear)).filter(Boolean))];
+  if (!availableYearsCache.includes(currentYear)) availableYearsCache.unshift(currentYear);
+  availableYearsCache.sort((a, b) => b - a);
+  return availableYearsCache;
+}
+
 async function loadFinancialRows(force = false) {
   if (financialRowsCache && !force) return financialRowsCache;
   const { data, error } = await supabase
@@ -563,6 +611,12 @@ function countBy(rows, key) {
     acc[value] = (acc[value] || 0) + 1;
     return acc;
   }, {});
+}
+
+function renderYearOptions() {
+  return normalizedAvailableYears()
+    .map((year) => `<option value="${year}" ${year === currentYear ? "selected" : ""}>${year}</option>`)
+    .join("");
 }
 
 function donutCard(title, count, color) {
@@ -650,7 +704,7 @@ function renderTable(rows) {
         <table class="financial-table">
           <thead><tr><th>Project</th><th>Status</th><th>Sector</th><th>Entity</th><th>Amount</th><th>Notes</th></tr></thead>
           <tbody>
-            ${rows.map((row) => `<tr><td><strong>${escapeHtml(row.project_name)}</strong><br><small>${row.project_year}</small></td><td><span class="financial-status-pill">${escapeHtml(statusLabel(row.status))}</span></td><td>${escapeHtml(row.sector)}</td><td>${escapeHtml(row.entity)}</td><td>${euro(row.amount_eur)}</td><td>${escapeHtml(row.notes || "")}</td></tr>`).join("") || `<tr><td colspan="6">No financial project data added yet.</td></tr>`}
+            ${rows.map((row) => `<tr><td><strong>${escapeHtml(row.project_name)}</strong><br><small>${row.project_year}</small></td><td><span class="financial-status-pill">${escapeHtml(statusLabel(row.status))}</span></td><td>${escapeHtml(row.sector)}</td><td>${escapeHtml(row.entity)}</td><td>${euro(row.amount_eur)}</td><td>${escapeHtml(row.notes || "")}</td></tr>`).join("") || `<tr><td colspan="6">No financial project data added yet for ${currentYear}.</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -668,6 +722,9 @@ function renderDashboard(container, rows) {
           <p>Externally funded project portfolio, active funding value, accepted projects to be launched, proposal pipeline, and sector distribution.</p>
         </div>
         <div class="financial-actions">
+          <label class="financial-year-control">Year
+            <select class="financial-year-select" aria-label="Financial dashboard year">${renderYearOptions()}</select>
+          </label>
           <button type="button" class="financial-secondary financial-refresh">Refresh</button>
           <button type="button" class="financial-primary financial-add">Add financial project data</button>
         </div>
@@ -688,6 +745,11 @@ function renderDashboard(container, rows) {
     </div>
   `;
 
+  container.querySelector(".financial-year-select")?.addEventListener("change", (event) => {
+    currentYear = Number(event.target.value || currentYear);
+    financialRowsCache = null;
+    openFinancialPage(true);
+  });
   container.querySelector(".financial-add")?.addEventListener("click", openFinancialModal);
   container.querySelector(".financial-refresh")?.addEventListener("click", () => openFinancialPage(true));
 }
@@ -728,6 +790,7 @@ async function openFinancialPage(force = false) {
 
   page.innerHTML = `<div class="financial-empty">Loading financial dashboard...</div>`;
   try {
+    await loadAvailableYears(force);
     renderDashboard(page, await loadFinancialRows(force));
   } catch (error) {
     renderMissingTable(page, error);
@@ -823,6 +886,7 @@ async function handleFinancialSubmit(event) {
 
   form.closest(".financial-modal-backdrop")?.remove();
   financialRowsCache = null;
+  availableYearsCache = null;
   currentYear = payload.project_year;
   openFinancialPage(true);
 }
