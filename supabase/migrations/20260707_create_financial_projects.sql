@@ -14,27 +14,67 @@ create table if not exists public.financial_projects (
 
 alter table public.financial_projects enable row level security;
 
-create policy if not exists "Authenticated users can view financial projects"
-on public.financial_projects
-for select
-to authenticated
-using (true);
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'financial_projects'
+      and policyname = 'Authenticated users can view financial projects'
+  ) then
+    create policy "Authenticated users can view financial projects"
+    on public.financial_projects
+    for select
+    to authenticated
+    using (true);
+  end if;
+end $$;
 
-create policy if not exists "Authenticated users can insert financial projects"
-on public.financial_projects
-for insert
-to authenticated
-with check (auth.uid() = created_by or created_by is null);
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'financial_projects'
+      and policyname = 'Authenticated users can insert financial projects'
+  ) then
+    create policy "Authenticated users can insert financial projects"
+    on public.financial_projects
+    for insert
+    to authenticated
+    with check (auth.uid() = created_by or created_by is null);
+  end if;
+end $$;
 
-create policy if not exists "Authenticated users can update financial projects"
-on public.financial_projects
-for update
-to authenticated
-using (true)
-with check (true);
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'financial_projects'
+      and policyname = 'Authenticated users can update financial projects'
+  ) then
+    create policy "Authenticated users can update financial projects"
+    on public.financial_projects
+    for update
+    to authenticated
+    using (true)
+    with check (true);
+  end if;
+end $$;
 
-create policy if not exists "Authenticated users can delete financial projects"
-on public.financial_projects
-for delete
-to authenticated
-using (true);
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'financial_projects'
+      and policyname = 'Authenticated users can delete financial projects'
+  ) then
+    create policy "Authenticated users can delete financial projects"
+    on public.financial_projects
+    for delete
+    to authenticated
+    using (true);
+  end if;
+end $$;
