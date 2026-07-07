@@ -153,10 +153,14 @@ function startFinancialMultiYearEditFix() {
 
       const button = editButton || deleteButton;
       const projectCode = rowProjectCode(button);
-      if (!projectCode) return;
 
       event.preventDefault();
       event.stopImmediatePropagation();
+
+      if (!projectCode) {
+        window.alert("This old financial row has no project_code. Add a project_code first by re-importing it through the CSV template or creating a new record.");
+        return;
+      }
 
       try {
         if (deleteButton) {
