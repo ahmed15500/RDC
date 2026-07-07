@@ -3,10 +3,13 @@ import { supabase } from "./lib/supabaseClient";
 let financialRowsCache = null;
 let currentYear = 2026;
 
+const PORTFOLIO_OWNER = "HU";
+const ACTIVE_PORTFOLIO_ENTITY = "HU";
+
 const statusOptions = [
   ["running", "Running Project"],
   ["accepted_to_launch", "Accepted, to be launched"],
-  ["ongoing", "Ongoing proposal"],
+  ["ongoing", "Ongoing"],
   ["phase_1", "Phase 1"],
   ["exploration", "Exploration"],
   ["postponed_cancelled", "Postponed / Cancelled"],
@@ -15,16 +18,26 @@ const statusOptions = [
   ["phase_2", "Phase 2"],
 ];
 
+const pipelineOrder = [
+  "ongoing",
+  "phase_1",
+  "exploration",
+  "postponed_cancelled",
+  "not_accepted",
+  "accepted",
+  "phase_2",
+];
+
 const pipelineColors = {
-  ongoing: "#6d6ab2",
-  phase_1: "#82d6d1",
-  exploration: "#ff7b8c",
-  postponed_cancelled: "#a877c7",
-  not_accepted: "#f6d84b",
-  accepted: "#67c935",
+  ongoing: "#6966b3",
+  phase_1: "#83d8d2",
+  exploration: "#ff7d90",
+  postponed_cancelled: "#a675c5",
+  not_accepted: "#f5d64a",
+  accepted: "#68c934",
   phase_2: "#ff9b3d",
-  running: "#67c935",
-  accepted_to_launch: "#a877c7",
+  running: "#68c934",
+  accepted_to_launch: "#a675c5",
 };
 
 const defaultSectors = [
@@ -43,7 +56,7 @@ const css = `
     position: relative;
   }
 
-  body.external-financial-view main.workspace > *:not(.topbar):not(.app-message):not(.role-notice):not(.financial-projects-page) {
+  body.external-financial-view main.workspace > *:not(.topbar):not(.financial-projects-page) {
     display: none !important;
   }
 
@@ -53,26 +66,32 @@ const css = `
     color: #26313d;
   }
 
+  .financial-dashboard-shell {
+    display: grid;
+    gap: 8px;
+    width: 100%;
+  }
+
   .financial-header-row {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
-    margin: 4px 0 6px;
+    margin: 2px 0 4px;
   }
 
   .financial-title-block h2 {
     margin: 0;
-    color: #26313d;
-    font-size: clamp(1.4rem, 3vw, 2rem);
+    color: #25303b;
+    font-size: clamp(1.35rem, 3vw, 2rem);
     font-weight: 900;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.035em;
   }
 
   .financial-title-block p {
-    margin: 6px 0 0;
+    margin: 5px 0 0;
     color: #697386;
-    line-height: 1.55;
+    line-height: 1.45;
   }
 
   .financial-actions {
@@ -103,16 +122,25 @@ const css = `
 
   .financial-dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: minmax(210px, 1fr) minmax(210px, 1fr) minmax(330px, 1.42fr);
     gap: 8px;
+    align-items: stretch;
+  }
+
+  .financial-second-row {
+    display: grid;
+    grid-template-columns: minmax(420px, 1.55fr) minmax(360px, 1fr);
+    gap: 8px;
+    align-items: stretch;
   }
 
   .financial-card {
     min-height: 170px;
     padding: 16px 18px;
-    border: 1px solid #e7eaee;
-    border-radius: 6px;
-    background: white;
+    border: 1px solid #e5e8ed;
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.045);
   }
 
   .financial-card h3 {
@@ -124,13 +152,23 @@ const css = `
 
   .financial-donut-card {
     display: grid;
-    align-items: center;
+    grid-template-rows: auto 1fr;
     justify-items: center;
   }
 
+  .financial-donut-card h3 {
+    justify-self: start;
+    width: 100%;
+  }
+
+  .financial-donut-wrap {
+    display: grid;
+    place-items: center;
+    width: 100%;
+  }
+
   .financial-donut {
-    --color: #67c935;
-    --track: #eef1f4;
+    --color: #68c934;
     width: min(220px, 70vw);
     aspect-ratio: 1;
     display: grid;
@@ -156,8 +194,9 @@ const css = `
   .financial-donut-inner strong {
     display: block;
     color: #26313d;
-    font-size: 1.25rem;
+    font-size: 1.28rem;
     line-height: 1;
+    font-weight: 900;
   }
 
   .financial-donut-inner span {
@@ -168,44 +207,71 @@ const css = `
     font-weight: 800;
   }
 
-  .financial-money-card {
-    display: grid;
-    align-content: center;
+  .financial-portfolio-card {
     position: relative;
+    display: grid;
+    gap: 10px;
+    align-content: center;
   }
 
-  .financial-money-card strong {
+  .financial-portfolio-main,
+  .financial-portfolio-sub {
+    display: grid;
+    gap: 4px;
+  }
+
+  .financial-portfolio-main strong,
+  .financial-portfolio-sub strong {
     display: block;
     color: #26313d;
-    font-size: clamp(2.1rem, 5vw, 4.1rem);
     font-weight: 900;
     letter-spacing: -0.06em;
     white-space: nowrap;
+  }
+
+  .financial-portfolio-main strong {
+    font-size: clamp(2.3rem, 5vw, 4.05rem);
+  }
+
+  .financial-portfolio-sub {
+    padding-top: 12px;
+    border-top: 1px solid #e5e8ed;
+  }
+
+  .financial-portfolio-sub h3 {
+    margin-bottom: 2px;
+  }
+
+  .financial-portfolio-sub strong {
+    font-size: clamp(1.75rem, 4vw, 3.25rem);
+  }
+
+  .financial-sub-entity {
+    color: #697386;
+    font-size: 0.78rem;
+    font-weight: 900;
+    text-transform: uppercase;
   }
 
   .financial-note {
     position: absolute;
     right: 14px;
     top: 14px;
-    max-width: 150px;
+    max-width: 165px;
     padding: 9px 12px;
     color: #1f2a32;
     background: #ff9a3d;
     font-size: 0.82rem;
-    font-weight: 800;
+    font-weight: 850;
     line-height: 1.25;
-  }
-
-  .financial-wide {
-    grid-column: span 2;
-    min-height: 340px;
   }
 
   .financial-pipeline-card {
     display: grid;
-    grid-template-columns: minmax(180px, 0.95fr) minmax(220px, 1.05fr);
+    grid-template-columns: minmax(210px, 0.95fr) minmax(230px, 1.05fr);
     align-items: center;
     gap: 12px;
+    min-height: 340px;
   }
 
   .financial-legend {
@@ -219,33 +285,37 @@ const css = `
     gap: 8px;
     align-items: center;
     color: #34404b;
-    font-weight: 800;
+    font-weight: 850;
   }
 
   .financial-legend-dot {
     width: 8px;
     height: 8px;
     border-radius: 999px;
-    background: var(--dot, #6d6ab2);
+    background: var(--dot, #6966b3);
+  }
+
+  .financial-sector-card {
+    min-height: 340px;
   }
 
   .financial-sector-bars {
     display: grid;
     gap: 11px;
-    margin-top: 4px;
+    margin-top: 6px;
   }
 
   .financial-sector-row {
     display: grid;
-    grid-template-columns: minmax(160px, 1fr) minmax(140px, 1.3fr) 28px;
+    grid-template-columns: minmax(155px, 1fr) minmax(130px, 1.35fr) 34px;
     gap: 8px;
     align-items: center;
-    color: #6b7280;
+    color: #5f6b7a;
     font-size: 0.83rem;
   }
 
   .financial-bar-track {
-    height: 28px;
+    height: 27px;
     background: #eef3f7;
   }
 
@@ -256,8 +326,12 @@ const css = `
     background: #29a9e1;
   }
 
+  .financial-sector-row b {
+    color: #34404b;
+    font-size: 0.78rem;
+  }
+
   .financial-table-card {
-    grid-column: 1 / -1;
     min-height: auto;
   }
 
@@ -363,33 +437,57 @@ const css = `
   }
 
   @media (max-width: 1120px) {
-    .financial-dashboard-grid {
+    .financial-dashboard-grid,
+    .financial-second-row {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .financial-portfolio-card,
+    .financial-pipeline-card,
+    .financial-sector-card {
+      grid-column: 1 / -1;
     }
   }
 
   @media (max-width: 760px) {
     .financial-dashboard-grid,
+    .financial-second-row,
     .financial-pipeline-card,
     .financial-form-grid,
     .financial-header-row {
-      grid-template-columns: 1fr;
+      grid-template-columns: 1fr !important;
       display: grid;
     }
 
-    .financial-wide,
     .financial-form-grid textarea,
     .financial-span-2 {
       grid-column: span 1;
     }
 
-    .financial-money-card strong {
-      font-size: 2.1rem;
+    .financial-card {
+      min-height: auto;
+      padding: 14px;
+    }
+
+    .financial-donut {
+      width: min(190px, 62vw);
+    }
+
+    .financial-portfolio-main strong,
+    .financial-portfolio-sub strong {
+      white-space: normal;
     }
 
     .financial-note {
       position: static;
-      margin-bottom: 12px;
+      max-width: none;
+      width: fit-content;
+      margin-bottom: 6px;
+    }
+
+    .financial-sector-row {
+      grid-template-columns: 1fr;
+      gap: 5px;
     }
   }
 `;
@@ -428,7 +526,7 @@ function normalizeRow(row) {
     ...row,
     status: row.status || "running",
     sector: row.sector || "Other",
-    entity: row.entity || "HU",
+    entity: row.entity || ACTIVE_PORTFOLIO_ENTITY,
     amount_eur: number(row.amount_eur),
     project_year: Number(row.project_year || currentYear),
   };
@@ -451,10 +549,12 @@ function summarize(rows) {
   const acceptedToLaunch = rows.filter((row) => row.status === "accepted_to_launch");
   const pipeline = rows.filter((row) => row.status !== "running" && row.status !== "accepted_to_launch");
   const totalActive = running.reduce((total, row) => total + number(row.amount_eur), 0);
-  const huActive = running.filter((row) => String(row.entity).toLowerCase() === "hu").reduce((total, row) => total + number(row.amount_eur), 0);
+  const activePortfolioSize = running
+    .filter((row) => String(row.entity || "").toLowerCase() === ACTIVE_PORTFOLIO_ENTITY.toLowerCase())
+    .reduce((total, row) => total + number(row.amount_eur), 0);
   const pipelineCounts = countBy(pipeline, "status");
   const sectorCounts = countBy(rows, "sector");
-  return { running, acceptedToLaunch, pipeline, totalActive, huActive, pipelineCounts, sectorCounts };
+  return { running, acceptedToLaunch, pipeline, totalActive, activePortfolioSize, pipelineCounts, sectorCounts };
 }
 
 function countBy(rows, key) {
@@ -469,15 +569,34 @@ function donutCard(title, count, color) {
   return `
     <section class="financial-card financial-donut-card">
       <h3>${escapeHtml(title)}</h3>
-      <div class="financial-donut" style="--color:${color}">
-        <div class="financial-donut-inner"><strong>${count}</strong><span>Total</span></div>
+      <div class="financial-donut-wrap">
+        <div class="financial-donut" style="--color:${color}">
+          <div class="financial-donut-inner"><strong>${count}</strong><span>Total</span></div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderPortfolioCard(summary) {
+  return `
+    <section class="financial-card financial-portfolio-card">
+      <span class="financial-note">Don’t include the ${summary.acceptedToLaunch.length} to be launched</span>
+      <div class="financial-portfolio-main">
+        <h3>Total active portfolio (all entities)</h3>
+        <strong>${euro(summary.totalActive)}</strong>
+      </div>
+      <div class="financial-portfolio-sub">
+        <h3>Active Portfolio Size</h3>
+        <span class="financial-sub-entity">${escapeHtml(ACTIVE_PORTFOLIO_ENTITY)}</span>
+        <strong>${euro(summary.activePortfolioSize)}</strong>
       </div>
     </section>
   `;
 }
 
 function pipelineDonutSegments(counts) {
-  const entries = Object.entries(counts).filter(([, count]) => count > 0);
+  const entries = pipelineOrder.map((status) => [status, counts[status] || 0]).filter(([, count]) => count > 0);
   const total = entries.reduce((sum, [, count]) => sum + count, 0) || 1;
   let cursor = 0;
   const segments = entries.map(([status, count]) => {
@@ -492,17 +611,19 @@ function pipelineDonutSegments(counts) {
 function renderPipeline(summary) {
   const counts = summary.pipelineCounts;
   const total = summary.pipeline.length;
-  const ordered = ["ongoing", "phase_1", "exploration", "postponed_cancelled", "not_accepted", "accepted", "phase_2"].filter((status) => counts[status]);
+  const ordered = pipelineOrder.filter((status) => counts[status]);
   return `
-    <section class="financial-card financial-wide financial-pipeline-card">
+    <section class="financial-card financial-pipeline-card">
       <div>
         <h3>Proposals Pipeline</h3>
         <div class="financial-legend">
           ${ordered.map((status) => `<div class="financial-legend-row"><span class="financial-legend-dot" style="--dot:${pipelineColors[status]}"></span><span>${escapeHtml(statusLabel(status))}</span><strong>${Math.round((counts[status] / Math.max(total, 1)) * 100)}%</strong></div>`).join("") || `<div class="financial-empty">No proposal pipeline data yet.</div>`}
         </div>
       </div>
-      <div class="financial-donut pipeline" style="--segments:${pipelineDonutSegments(counts)}">
-        <div class="financial-donut-inner"><strong>${total}</strong><span>Total</span></div>
+      <div class="financial-donut-wrap">
+        <div class="financial-donut pipeline" style="--segments:${pipelineDonutSegments(counts)}">
+          <div class="financial-donut-inner"><strong>${total}</strong><span>Total</span></div>
+        </div>
       </div>
     </section>
   `;
@@ -512,7 +633,7 @@ function renderSectors(summary) {
   const entries = Object.entries(summary.sectorCounts).sort((a, b) => b[1] - a[1]);
   const max = Math.max(...entries.map(([, value]) => value), 1);
   return `
-    <section class="financial-card financial-wide">
+    <section class="financial-card financial-sector-card">
       <h3>Count Sectors</h3>
       <div class="financial-sector-bars">
         ${entries.map(([sector, count]) => `<div class="financial-sector-row"><span>${escapeHtml(sector)}</span><div class="financial-bar-track"><span style="--w:${Math.max(4, (count / max) * 100)}%"></span></div><b>${count}</b></div>`).join("") || `<div class="financial-empty">No sector data yet.</div>`}
@@ -540,23 +661,29 @@ function renderTable(rows) {
 function renderDashboard(container, rows) {
   const summary = summarize(rows);
   container.innerHTML = `
-    <div class="financial-header-row">
-      <div class="financial-title-block">
-        <h2>Externally Funded Projects (${currentYear})</h2>
-        <p>Financial portfolio dashboard for running projects, accepted projects to be launched, proposal pipeline, active portfolio value, and sector distribution.</p>
+    <div class="financial-dashboard-shell">
+      <div class="financial-header-row">
+        <div class="financial-title-block">
+          <h2>${escapeHtml(PORTFOLIO_OWNER)} - Externally Funded Projects (${currentYear})</h2>
+          <p>Externally funded project portfolio, active funding value, accepted projects to be launched, proposal pipeline, and sector distribution.</p>
+        </div>
+        <div class="financial-actions">
+          <button type="button" class="financial-secondary financial-refresh">Refresh</button>
+          <button type="button" class="financial-primary financial-add">Add financial project data</button>
+        </div>
       </div>
-      <div class="financial-actions">
-        <button type="button" class="financial-secondary financial-refresh">Refresh</button>
-        <button type="button" class="financial-primary financial-add">Add financial project data</button>
+
+      <div class="financial-dashboard-grid">
+        ${donutCard("Running Projects", summary.running.length, "#68c934")}
+        ${donutCard("Accepted, to be launched", summary.acceptedToLaunch.length, "#a675c5")}
+        ${renderPortfolioCard(summary)}
       </div>
-    </div>
-    <div class="financial-dashboard-grid">
-      ${donutCard("Running Projects", summary.running.length, "#67c935")}
-      ${donutCard("Accepted, to be launched", summary.acceptedToLaunch.length, "#a877c7")}
-      <section class="financial-card financial-money-card"><span class="financial-note">Don’t include the ${summary.acceptedToLaunch.length} to be launched</span><h3>Total active portfolio (all entities)</h3><strong>${euro(summary.totalActive)}</strong></section>
-      <section class="financial-card financial-money-card"><h3>Active Portfolio Size (HU)</h3><strong>${euro(summary.huActive)}</strong></section>
-      ${renderPipeline(summary)}
-      ${renderSectors(summary)}
+
+      <div class="financial-second-row">
+        ${renderPipeline(summary)}
+        ${renderSectors(summary)}
+      </div>
+
       ${renderTable(rows)}
     </div>
   `;
@@ -568,7 +695,7 @@ function renderDashboard(container, rows) {
 function renderMissingTable(container, error) {
   container.innerHTML = `
     <div class="financial-header-row">
-      <div class="financial-title-block"><h2>Externally Funded Projects (${currentYear})</h2><p>Financial dashboard is ready, but the Supabase table must be created first.</p></div>
+      <div class="financial-title-block"><h2>${escapeHtml(PORTFOLIO_OWNER)} - Externally Funded Projects (${currentYear})</h2><p>Financial dashboard is ready, but the Supabase table must be created first.</p></div>
     </div>
     <div class="financial-empty">
       Could not load <strong>financial_projects</strong>. Run the SQL migration in Supabase first.<br><br>
@@ -642,7 +769,7 @@ function openFinancialModal() {
         <label class="financial-span-2">Project name<input name="project_name" required placeholder="Project title" /></label>
         <label>Status<select name="status">${statusOptions.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label>
         <label>Sector<select name="sector">${defaultSectors.map((sector) => `<option>${sector}</option>`).join("")}</select></label>
-        <label>Entity<select name="entity"><option>HU</option><option>SEKEM</option><option>EBDA</option><option>All entities</option><option>Other</option></select></label>
+        <label>Entity<select name="entity"><option>${ACTIVE_PORTFOLIO_ENTITY}</option><option>SEKEM</option><option>EBDA</option><option>All entities</option><option>Other</option></select></label>
         <label>Amount EUR<input name="amount_eur" type="number" min="0" step="0.01" placeholder="0.00" /></label>
         <label>Year<input name="project_year" type="number" min="2020" max="2100" value="${currentYear}" /></label>
         <label class="financial-span-2">Notes<textarea name="notes" placeholder="Optional details, donor, launch notes, or exclusions"></textarea></label>
@@ -678,7 +805,7 @@ async function handleFinancialSubmit(event) {
     project_name: String(formData.get("project_name") || "").trim(),
     status: String(formData.get("status") || "running"),
     sector: String(formData.get("sector") || "Other"),
-    entity: String(formData.get("entity") || "HU"),
+    entity: String(formData.get("entity") || ACTIVE_PORTFOLIO_ENTITY),
     amount_eur: number(formData.get("amount_eur")),
     project_year: Number(formData.get("project_year") || currentYear),
     notes: String(formData.get("notes") || "").trim(),
