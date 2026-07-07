@@ -3,6 +3,13 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const ADMIN_EMAIL = "ahmed.bahrawy@hu.edu.eg";
 const DEFAULT_APP_URL = "https://rdc-tau.vercel.app";
 
+const allowedInviteRoles = new Set([
+  "viewer",
+  "stakeholder",
+  "financial",
+  "financial_stakeholder",
+]);
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -22,6 +29,14 @@ function resolveAppUrl() {
     return DEFAULT_APP_URL;
   }
   return configuredUrl;
+}
+
+function normalizeInviteRole(value: unknown) {
+  const role = String(value || "viewer").trim().toLowerCase();
+  if (role === "full_viewer") return "viewer";
+  if (role === "full_stakeholder") return "stakeholder";
+  if (allowedInviteRoles.has(role)) return role;
+  return "viewer";
 }
 
 Deno.serve(async (req) => {
@@ -81,6 +96,7 @@ Deno.serve(async (req) => {
   const email = String(body.email || "").trim().toLowerCase();
   const name = String(body.name || "").trim();
   const department = String(body.department || "").trim();
+  const requestedRole = normalizeInviteRole(body.role);
 
   if (!email || !email.includes("@")) {
     return jsonResponse({ error: "A valid email is required." }, 400);
@@ -90,6 +106,7 @@ Deno.serve(async (req) => {
   const userMetadata = {
     name,
     department,
+    role: requestedRole,
     login_url: appUrl,
   };
 
@@ -119,7 +136,7 @@ Deno.serve(async (req) => {
         email,
         name,
         department,
-        role: email === ADMIN_EMAIL ? "admin" : "viewer",
+        role: email === ADMIN_EMAIL ? "admin" : requestedRole,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "id" },
@@ -131,5 +148,6 @@ Deno.serve(async (req) => {
     userId: data.user?.id || null,
     loginUrl: appUrl,
     email,
+    role: requestedRole,
   });
 });
