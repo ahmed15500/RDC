@@ -1,3 +1,6 @@
+-- Financial users should be able to view the shared approved activity inputs.
+-- This restores the original collaborative read behavior while keeping edit/delete permissions separate.
+
 create or replace function public.current_app_role()
 returns text
 language sql
@@ -15,20 +18,14 @@ drop policy if exists "Non-financial users can read their own activities" on pub
 drop policy if exists "Authenticated users can read approved activities" on public.activities;
 drop policy if exists "Non-financial users can read approved activities" on public.activities;
 
-create policy "Non-financial users can read their own activities"
+create policy "Users can read their own activities"
 on public.activities
 for select
 to authenticated
-using (
-  auth.uid() = submitted_by
-  and public.current_app_role() not in ('financial', 'financial_stakeholder')
-);
+using (auth.uid() = submitted_by);
 
-create policy "Non-financial users can read approved activities"
+create policy "Authenticated users can read approved activities"
 on public.activities
 for select
 to authenticated
-using (
-  approval_status = 'approved'
-  and public.current_app_role() not in ('financial', 'financial_stakeholder')
-);
+using (approval_status = 'approved');
