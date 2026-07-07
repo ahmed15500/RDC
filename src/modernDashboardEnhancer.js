@@ -1,32 +1,41 @@
 import { supabase } from "./lib/supabaseClient";
 
 let dashboardDataPromise = null;
+let currentMode = "executive";
+let lastRenderKey = "";
+let scheduledRender = null;
+let isRendering = false;
+
+const allowedPages = [
+  "Home",
+  "Admin Dashboard",
+  "Village Dashboard",
+  "Project Dashboard",
+  "Pillar Dashboard",
+  "SDG Dashboard",
+  "Social Transformation",
+];
 
 const css = `
   .modern-command-center {
     margin: 0 0 22px;
-    padding: clamp(18px, 3vw, 28px);
+    padding: clamp(16px, 3vw, 26px);
     border: 1px solid rgba(36, 43, 120, 0.12);
-    border-radius: 30px;
-    background:
-      radial-gradient(circle at top left, rgba(230, 0, 126, 0.13), transparent 28%),
-      radial-gradient(circle at top right, rgba(29, 154, 105, 0.13), transparent 30%),
-      linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(246, 249, 255, 0.88));
+    border-radius: 28px;
+    background: radial-gradient(circle at top left, rgba(230, 0, 126, 0.13), transparent 30%), radial-gradient(circle at top right, rgba(29, 154, 105, 0.13), transparent 32%), linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(246, 249, 255, 0.9));
     box-shadow: var(--shadow, 0 24px 70px rgba(20, 30, 84, 0.12));
   }
 
   .modern-center-header {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 16px;
+    gap: 14px;
     align-items: start;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
   }
 
   .modern-eyebrow {
     display: inline-flex;
-    align-items: center;
-    gap: 8px;
     width: fit-content;
     padding: 7px 10px;
     color: var(--magenta, #e6007e);
@@ -34,7 +43,6 @@ const css = `
     background: rgba(230, 0, 126, 0.1);
     font-size: 0.78rem;
     font-weight: 900;
-    letter-spacing: 0.02em;
     text-transform: uppercase;
   }
 
@@ -42,8 +50,8 @@ const css = `
     margin: 10px 0 6px;
     color: var(--navy, #242b78);
     font-family: "Space Grotesk", sans-serif;
-    font-size: clamp(1.65rem, 4vw, 3.1rem);
-    line-height: 0.96;
+    font-size: clamp(1.65rem, 4vw, 3rem);
+    line-height: 0.98;
     letter-spacing: -0.055em;
   }
 
@@ -69,6 +77,7 @@ const css = `
     color: var(--navy, #242b78);
     font-size: 0.82rem;
     font-weight: 900;
+    cursor: pointer;
   }
 
   .modern-view-tabs button.active {
@@ -88,7 +97,7 @@ const css = `
     position: relative;
     overflow: hidden;
     padding: 16px;
-    min-height: 122px;
+    min-height: 118px;
     border: 1px solid rgba(36, 43, 120, 0.1);
     border-radius: 22px;
     background: rgba(255, 255, 255, 0.88);
@@ -107,25 +116,19 @@ const css = `
     display: block;
     color: var(--navy, #242b78);
     font-family: "Space Grotesk", sans-serif;
-    font-size: clamp(1.65rem, 3vw, 2.4rem);
+    font-size: clamp(1.55rem, 3vw, 2.3rem);
     line-height: 1;
   }
 
-  .modern-kpi-card span {
-    display: block;
-    margin-top: 7px;
-    color: var(--muted, #6a7188);
-    font-size: 0.83rem;
-    font-weight: 900;
-  }
-
+  .modern-kpi-card span,
   .modern-kpi-card small {
     display: block;
-    margin-top: 8px;
-    color: var(--ink, #172033);
-    opacity: 0.72;
-    line-height: 1.45;
+    color: var(--muted, #6a7188);
+    font-weight: 850;
   }
+
+  .modern-kpi-card span { margin-top: 7px; font-size: 0.83rem; }
+  .modern-kpi-card small { margin-top: 8px; line-height: 1.45; }
 
   .modern-dashboard-grid {
     display: grid;
@@ -167,7 +170,6 @@ const css = `
     display: grid;
     grid-template-columns: auto 1fr;
     gap: 10px;
-    align-items: start;
     padding: 11px 12px;
     border-radius: 16px;
     background: rgba(36, 43, 120, 0.06);
@@ -185,10 +187,7 @@ const css = `
     font-size: 0.78rem;
   }
 
-  .modern-bar-list {
-    display: grid;
-    gap: 11px;
-  }
+  .modern-bar-list { display: grid; gap: 11px; }
 
   .modern-bar-row {
     display: grid;
@@ -197,9 +196,7 @@ const css = `
     align-items: center;
   }
 
-  .modern-bar-row strong {
-    color: var(--navy, #242b78);
-  }
+  .modern-bar-row strong { color: var(--navy, #242b78); }
 
   .modern-bar-track {
     height: 11px;
@@ -248,34 +245,18 @@ const css = `
     font-weight: 900;
   }
 
-  .modern-disclosure > div {
-    padding: 0 15px 15px;
-  }
+  .modern-disclosure > div { padding: 0 15px 15px; }
 
   @media (max-width: 980px) {
     .modern-center-header,
-    .modern-dashboard-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .modern-view-tabs {
-      justify-content: flex-start;
-    }
+    .modern-dashboard-grid { grid-template-columns: 1fr; }
+    .modern-view-tabs { justify-content: flex-start; }
   }
 
   @media (max-width: 620px) {
-    .modern-command-center {
-      border-radius: 22px;
-      padding: 16px;
-    }
-
-    .modern-kpi-strip {
-      grid-template-columns: 1fr 1fr;
-    }
-
-    .modern-bar-row {
-      grid-template-columns: 1fr;
-    }
+    .modern-command-center { border-radius: 22px; padding: 16px; }
+    .modern-kpi-strip { grid-template-columns: 1fr 1fr; }
+    .modern-bar-row { grid-template-columns: 1fr; }
   }
 `;
 
@@ -287,18 +268,9 @@ function installStyles() {
   document.head.appendChild(style);
 }
 
-function number(value) {
-  return Number(value || 0);
-}
-
-function format(value) {
-  return new Intl.NumberFormat("en-US").format(Math.round(number(value)));
-}
-
-function percent(value, total) {
-  return total ? Math.round((number(value) / number(total)) * 100) : 0;
-}
-
+function number(value) { return Number(value || 0); }
+function format(value) { return new Intl.NumberFormat("en-US").format(Math.round(number(value))); }
+function percent(value, total) { return total ? Math.round((number(value) / number(total)) * 100) : 0; }
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -307,32 +279,18 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
-
-function splitVillage(value) {
-  return String(value || "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
+function splitVillage(value) { return String(value || "").split(",").map((item) => item.trim()).filter(Boolean); }
 function pillarsFor(row) {
-  return [
-    row.ecology_impact ? "Ecology" : null,
-    row.society_impact ? "Society" : null,
-    row.culture_impact ? "Culture" : null,
-    row.economy_impact ? "Economy" : null,
-  ].filter(Boolean);
+  return [row.ecology_impact ? "Ecology" : null, row.society_impact ? "Society" : null, row.culture_impact ? "Culture" : null, row.economy_impact ? "Economy" : null].filter(Boolean);
 }
 
 async function loadDashboardRows() {
   if (dashboardDataPromise) return dashboardDataPromise;
-
   dashboardDataPromise = (async () => {
     const { data, error } = await supabase.from("activities").select("*").order("created_at", { ascending: false });
     if (error) throw error;
     return data || [];
   })();
-
   return dashboardDataPromise;
 }
 
@@ -349,76 +307,24 @@ function summarize(rows) {
   const missingOutcome = rows.filter((row) => !row.key_outcome && !row.success_story && !row.future_opportunity).length;
   const missingEvidence = rows.filter((row) => !row.evidence_link).length;
   const genderAssessed = rows.filter((row) => row.gender_equality_level && row.gender_equality_level !== "not_assessed").length;
-
   const byPillar = ["Ecology", "Society", "Culture", "Economy"].map((pillar) => {
     const pillarRows = rows.filter((row) => pillarsFor(row).includes(pillar));
-    return {
-      label: pillar,
-      value: pillarRows.length,
-      beneficiaries: pillarRows.reduce((total, row) => total + number(row.direct_beneficiaries) + number(row.indirect_beneficiaries), 0),
-    };
+    return { label: pillar, value: pillarRows.length };
   });
-
-  const villageCounts = [...villages].map((village) => ({
-    label: village,
-    value: rows.filter((row) => splitVillage(row.village).includes(village)).length,
-  })).sort((a, b) => b.value - a.value).slice(0, 6);
-
-  return {
-    total: rows.length,
-    villages: villages.size,
-    direct,
-    indirect,
-    women,
-    youth,
-    trainings,
-    waste,
-    approved,
-    pending,
-    missingOutcome,
-    missingEvidence,
-    genderAssessed,
-    byPillar,
-    villageCounts,
-  };
+  const villageCounts = [...villages].map((village) => ({ label: village, value: rows.filter((row) => splitVillage(row.village).includes(village)).length })).sort((a, b) => b.value - a.value).slice(0, 6);
+  return { total: rows.length, villages: villages.size, direct, indirect, women, youth, trainings, waste, approved, pending, missingOutcome, missingEvidence, genderAssessed, byPillar, villageCounts };
 }
 
 function renderBars(items, total) {
   const max = Math.max(...items.map((item) => item.value), 1);
-  return items.map((item) => `
-    <div class="modern-bar-row">
-      <strong>${escapeHtml(item.label)}</strong>
-      <div class="modern-bar-track" aria-hidden="true"><span style="--w:${Math.max(5, (item.value / max) * 100)}%"></span></div>
-      <span>${format(item.value)} ${total ? `(${percent(item.value, total)}%)` : ""}</span>
-    </div>
-  `).join("");
+  return items.map((item) => `<div class="modern-bar-row"><strong>${escapeHtml(item.label)}</strong><div class="modern-bar-track" aria-hidden="true"><span style="--w:${Math.max(5, (item.value / max) * 100)}%"></span></div><span>${format(item.value)} ${total ? `(${percent(item.value, total)}%)` : ""}</span></div>`).join("");
 }
 
 function renderTable(summary) {
   const rows = [
-    ["Activities", summary.total],
-    ["Villages", summary.villages],
-    ["Direct beneficiaries", summary.direct],
-    ["Indirect beneficiaries", summary.indirect],
-    ["Women reached", summary.women],
-    ["Youth reached", summary.youth],
-    ["Trainings", summary.trainings],
-    ["Waste handled kg", summary.waste],
-    ["Approved activities", summary.approved],
-    ["Pending activities", summary.pending],
-    ["Activities with gender equality assessment", summary.genderAssessed],
+    ["Activities", summary.total], ["Villages", summary.villages], ["Direct beneficiaries", summary.direct], ["Indirect beneficiaries", summary.indirect], ["Women reached", summary.women], ["Youth reached", summary.youth], ["Trainings", summary.trainings], ["Waste handled kg", summary.waste], ["Approved activities", summary.approved], ["Pending activities", summary.pending], ["Activities with gender equality assessment", summary.genderAssessed],
   ];
-
-  return `
-    <div class="table-wrap">
-      <table class="modern-data-table">
-        <thead><tr><th>Metric</th><th>Value</th><th>Interpretation</th></tr></thead>
-        <tbody>
-          ${rows.map(([label, value]) => `<tr><td>${escapeHtml(label)}</td><td>${format(value)}</td><td>${interpret(label, value, summary)}</td></tr>`).join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
+  return `<div class="table-wrap"><table class="modern-data-table"><thead><tr><th>Metric</th><th>Value</th><th>Interpretation</th></tr></thead><tbody>${rows.map(([label, value]) => `<tr><td>${escapeHtml(label)}</td><td>${format(value)}</td><td>${interpret(label, value, summary)}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function interpret(label, value, summary) {
@@ -438,129 +344,111 @@ function renderCommandCenter(rows, mode = "executive") {
     [summary.total - summary.genderAssessed, "Gender equality not assessed", "Complete the gender equality section for each activity."],
   ].filter(([count]) => count > 0);
 
-  return `
-    <article class="modern-command-center" aria-label="Modern dashboard command center">
-      <div class="modern-center-header">
-        <div>
-          <span class="modern-eyebrow">Modern impact dashboard</span>
-          <h2>RDC command center</h2>
-          <p>Executive summary, field-readiness signals, data quality checks, and accessible table equivalents are grouped into one responsive cockpit.</p>
-        </div>
-        <div class="modern-view-tabs" role="tablist" aria-label="Dashboard view mode">
-          ${["executive", "field", "quality"].map((item) => `<button type="button" class="${mode === item ? "active" : ""}" data-modern-mode="${item}">${item[0].toUpperCase()}${item.slice(1)}</button>`).join("")}
-        </div>
-      </div>
-
-      <div class="modern-kpi-strip">
-        <div class="modern-kpi-card" style="--accent:#e6007e"><strong>${format(summary.total)}</strong><span>Activities</span><small>${format(summary.approved)} approved · ${format(summary.pending)} pending</small></div>
-        <div class="modern-kpi-card" style="--accent:#1d9a69"><strong>${format(summary.villages)}</strong><span>Villages reached</span><small>Coverage across the 13-village model</small></div>
-        <div class="modern-kpi-card" style="--accent:#ff8500"><strong>${format(totalBeneficiaries)}</strong><span>Total beneficiaries</span><small>${format(summary.direct)} direct · ${format(summary.indirect)} indirect</small></div>
-        <div class="modern-kpi-card" style="--accent:#345f48"><strong>${format(summary.genderAssessed)}</strong><span>Gender-assessed activities</span><small>${percent(summary.genderAssessed, summary.total)}% gender tracking coverage</small></div>
-        <div class="modern-kpi-card" style="--accent:#242b78"><strong>${format(summary.women)}</strong><span>Women reached</span><small>Shown as a core equity KPI</small></div>
-        <div class="modern-kpi-card" style="--accent:#2474c6"><strong>${format(summary.waste)}</strong><span>Waste handled kg</span><small>Collected, recycled, or composted</small></div>
-      </div>
-
-      ${mode === "executive" ? renderExecutive(summary, totalBeneficiaries, attentionItems) : ""}
-      ${mode === "field" ? renderField(summary) : ""}
-      ${mode === "quality" ? renderQuality(summary, attentionItems) : ""}
-    </article>
-  `;
+  return `<article class="modern-command-center" aria-label="Modern dashboard command center" data-modern-mode-current="${mode}">
+    <div class="modern-center-header">
+      <div><span class="modern-eyebrow">Modern impact dashboard</span><h2>RDC command center</h2><p>Executive summary, field-readiness signals, data quality checks, and accessible table equivalents are grouped into one responsive cockpit.</p></div>
+      <div class="modern-view-tabs" role="tablist" aria-label="Dashboard view mode">${["executive", "field", "quality"].map((item) => `<button type="button" class="${mode === item ? "active" : ""}" data-modern-mode="${item}">${item[0].toUpperCase()}${item.slice(1)}</button>`).join("")}</div>
+    </div>
+    <div class="modern-kpi-strip">
+      <div class="modern-kpi-card" style="--accent:#e6007e"><strong>${format(summary.total)}</strong><span>Activities</span><small>${format(summary.approved)} approved · ${format(summary.pending)} pending</small></div>
+      <div class="modern-kpi-card" style="--accent:#1d9a69"><strong>${format(summary.villages)}</strong><span>Villages reached</span><small>Coverage across the 13-village model</small></div>
+      <div class="modern-kpi-card" style="--accent:#ff8500"><strong>${format(totalBeneficiaries)}</strong><span>Total beneficiaries</span><small>${format(summary.direct)} direct · ${format(summary.indirect)} indirect</small></div>
+      <div class="modern-kpi-card" style="--accent:#345f48"><strong>${format(summary.genderAssessed)}</strong><span>Gender-assessed activities</span><small>${percent(summary.genderAssessed, summary.total)}% gender tracking coverage</small></div>
+      <div class="modern-kpi-card" style="--accent:#242b78"><strong>${format(summary.women)}</strong><span>Women reached</span><small>Shown as a core equity KPI</small></div>
+      <div class="modern-kpi-card" style="--accent:#2474c6"><strong>${format(summary.waste)}</strong><span>Waste handled kg</span><small>Collected, recycled, or composted</small></div>
+    </div>
+    ${mode === "executive" ? renderExecutive(summary, totalBeneficiaries, attentionItems) : ""}
+    ${mode === "field" ? renderField(summary) : ""}
+    ${mode === "quality" ? renderQuality(summary, attentionItems) : ""}
+  </article>`;
 }
 
 function renderExecutive(summary, totalBeneficiaries, attentionItems) {
-  return `
-    <div class="modern-dashboard-grid">
-      <section class="modern-panel">
-        <h3>Plain-language status</h3>
-        <div class="modern-plain-status">RDC currently has ${format(summary.total)} recorded activities across ${format(summary.villages)} villages, reaching ${format(totalBeneficiaries)} direct and indirect beneficiaries. Gender equality is explicitly assessed in ${format(summary.genderAssessed)} activities. ${attentionItems.length ? "The priority is to close validation, evidence, outcome, and gender-tracking gaps." : "No major dashboard data gaps are visible from the current records."}</div>
-        <details class="modern-disclosure">
-          <summary>Show accessible KPI table</summary>
-          <div>${renderTable(summary)}</div>
-        </details>
-      </section>
-      <section class="modern-panel">
-        <h3>Sustainability pillar distribution</h3>
-        <div class="modern-bar-list">${renderBars(summary.byPillar, summary.total)}</div>
-      </section>
-    </div>
-  `;
+  return `<div class="modern-dashboard-grid"><section class="modern-panel"><h3>Plain-language status</h3><div class="modern-plain-status">RDC currently has ${format(summary.total)} recorded activities across ${format(summary.villages)} villages, reaching ${format(totalBeneficiaries)} direct and indirect beneficiaries. Gender equality is explicitly assessed in ${format(summary.genderAssessed)} activities. ${attentionItems.length ? "The priority is to close validation, evidence, outcome, and gender-tracking gaps." : "No major dashboard data gaps are visible from the current records."}</div><details class="modern-disclosure"><summary>Show accessible KPI table</summary><div>${renderTable(summary)}</div></details></section><section class="modern-panel"><h3>Sustainability pillar distribution</h3><div class="modern-bar-list">${renderBars(summary.byPillar, summary.total)}</div></section></div>`;
 }
-
 function renderField(summary) {
-  return `
-    <div class="modern-dashboard-grid">
-      <section class="modern-panel">
-        <h3>Top active villages</h3>
-        <div class="modern-bar-list">${renderBars(summary.villageCounts, summary.total) || "No village data yet."}</div>
-      </section>
-      <section class="modern-panel">
-        <h3>Field operations lens</h3>
-        <div class="modern-plain-status">Use this view to identify where activity volume is concentrated, where field evidence is missing, and where gender equality participation data still needs completion before reporting.</div>
-      </section>
-    </div>
-  `;
+  return `<div class="modern-dashboard-grid"><section class="modern-panel"><h3>Top active villages</h3><div class="modern-bar-list">${renderBars(summary.villageCounts, summary.total) || "No village data yet."}</div></section><section class="modern-panel"><h3>Field operations lens</h3><div class="modern-plain-status">Use this view to identify where activity volume is concentrated, where field evidence is missing, and where gender equality participation data still needs completion before reporting.</div></section></div>`;
 }
-
 function renderQuality(summary, attentionItems) {
-  return `
-    <div class="modern-dashboard-grid">
-      <section class="modern-panel">
-        <h3>Data quality alerts</h3>
-        <ul class="modern-alert-list">
-          ${attentionItems.map(([count, title, text]) => `<li><b>${format(count)}</b><span><strong>${escapeHtml(title)}</strong><br>${escapeHtml(text)}</span></li>`).join("") || `<li><b>0</b><span><strong>No critical gaps</strong><br>The current records are ready for reporting.</span></li>`}
-        </ul>
-      </section>
-      <section class="modern-panel">
-        <h3>Quality table</h3>
-        ${renderTable(summary)}
-      </section>
-    </div>
-  `;
+  return `<div class="modern-dashboard-grid"><section class="modern-panel"><h3>Data quality alerts</h3><ul class="modern-alert-list">${attentionItems.map(([count, title, text]) => `<li><b>${format(count)}</b><span><strong>${escapeHtml(title)}</strong><br>${escapeHtml(text)}</span></li>`).join("") || `<li><b>0</b><span><strong>No critical gaps</strong><br>The current records are ready for reporting.</span></li>`}</ul></section><section class="modern-panel"><h3>Quality table</h3>${renderTable(summary)}</section></div>`;
 }
 
-async function injectModernDashboard(mode = "executive") {
+function shouldShowOnCurrentPage() {
+  const pageTitle = document.querySelector("main.workspace .topbar h1")?.textContent?.trim() || "";
+  return allowedPages.some((title) => pageTitle.includes(title));
+}
+
+function getPageKey() {
+  const pageTitle = document.querySelector("main.workspace .topbar h1")?.textContent?.trim() || "";
+  return `${pageTitle}|${currentMode}`;
+}
+
+async function renderModernDashboard(force = false) {
+  if (isRendering) return;
   const workspace = document.querySelector("main.workspace");
   const topbar = workspace?.querySelector(".topbar");
   if (!workspace || !topbar) return;
 
-  const pageTitle = topbar.querySelector("h1")?.textContent?.trim() || "";
-  const allowed = ["Home", "Admin Dashboard", "Village Dashboard", "Project Dashboard", "Pillar Dashboard", "SDG Dashboard", "Social Transformation"];
-  const shouldShow = allowed.some((title) => pageTitle.includes(title));
-
-  const existing = workspace.querySelector(".modern-command-center");
-  if (!shouldShow) {
-    existing?.remove();
+  if (!shouldShowOnCurrentPage()) {
+    workspace.querySelector(".modern-command-center")?.remove();
+    lastRenderKey = "";
     return;
   }
 
+  const renderKey = getPageKey();
+  if (!force && renderKey === lastRenderKey && workspace.querySelector(".modern-command-center")) return;
+
+  isRendering = true;
   try {
-    const rows = await loadDashboardRows();
-    const html = renderCommandCenter(rows, mode);
-    if (existing) {
-      existing.outerHTML = html;
-    } else {
+    const html = renderCommandCenter(await loadDashboardRows(), currentMode);
+    const existing = workspace.querySelector(".modern-command-center");
+    const fragment = document.createRange().createContextualFragment(html);
+    if (existing) existing.replaceWith(fragment);
+    else {
       const anchor = workspace.querySelector(".role-notice") || workspace.querySelector(".app-message") || topbar;
-      anchor.after(document.createRange().createContextualFragment(html));
+      anchor.after(fragment);
     }
+    lastRenderKey = renderKey;
   } catch (error) {
     const fallback = `<article class="modern-command-center"><div class="modern-plain-status">Modern dashboard could not load Supabase activity rows: ${escapeHtml(error.message || "Unknown error")}</div></article>`;
+    const existing = workspace.querySelector(".modern-command-center");
     if (existing) existing.outerHTML = fallback;
     else topbar.after(document.createRange().createContextualFragment(fallback));
+    lastRenderKey = renderKey;
+  } finally {
+    isRendering = false;
   }
+}
+
+function scheduleRender(force = false) {
+  if (scheduledRender) window.clearTimeout(scheduledRender);
+  scheduledRender = window.setTimeout(() => {
+    scheduledRender = null;
+    renderModernDashboard(force);
+  }, 250);
 }
 
 function startModernDashboardEnhancer() {
   installStyles();
-  injectModernDashboard();
+  scheduleRender(true);
 
   document.addEventListener("click", (event) => {
-    const button = event.target.closest?.("[data-modern-mode]");
-    if (!button) return;
-    injectModernDashboard(button.dataset.modernMode);
+    const modeButton = event.target.closest?.("[data-modern-mode]");
+    if (modeButton) {
+      currentMode = modeButton.dataset.modernMode || "executive";
+      lastRenderKey = "";
+      scheduleRender(true);
+      return;
+    }
+
+    if (event.target.closest?.(".sidebar nav button, .menu-toggle, .ghost")) {
+      scheduleRender(false);
+    }
   });
 
-  const observer = new MutationObserver(() => injectModernDashboard());
-  observer.observe(document.getElementById("root") || document.body, { childList: true, subtree: true });
+  const observer = new MutationObserver(() => scheduleRender(false));
+  const root = document.getElementById("root") || document.body;
+  observer.observe(root, { childList: true, subtree: true });
 }
 
 if (document.readyState === "loading") {
