@@ -10,8 +10,19 @@ $$;
 
 grant execute on function public.current_app_role() to authenticated;
 
+drop policy if exists "Users can read their own activities" on public.activities;
+drop policy if exists "Non-financial users can read their own activities" on public.activities;
 drop policy if exists "Authenticated users can read approved activities" on public.activities;
 drop policy if exists "Non-financial users can read approved activities" on public.activities;
+
+create policy "Non-financial users can read their own activities"
+on public.activities
+for select
+to authenticated
+using (
+  auth.uid() = submitted_by
+  and public.current_app_role() not in ('financial', 'financial_stakeholder')
+);
 
 create policy "Non-financial users can read approved activities"
 on public.activities
