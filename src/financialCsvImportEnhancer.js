@@ -1,14 +1,15 @@
 import { supabase } from "./lib/supabaseClient";
+import * as XLSX from "xlsx";
 
 const templateHeaders = ["project_code", "project_name", "status", "sector", "entity", "start_year", "end_year", "total_budget_eur", "annual_amount_eur", "project_year", "notes"];
 const requiredHeaders = ["project_name"];
 const allowedStatuses = new Set(["running", "completed", "accepted_to_launch", "ongoing", "phase_1", "exploration", "postponed_cancelled", "not_accepted", "accepted", "phase_2"]);
 const statusAliases = {
-  "active": "running",
+  active: "running",
   "running project": "running",
   "completed project": "completed",
-  "done": "completed",
-  "closed": "completed",
+  done: "completed",
+  closed: "completed",
   "accepted, to be launched": "accepted_to_launch",
   "accepted to be launched": "accepted_to_launch",
   "to be launched": "accepted_to_launch",
@@ -17,10 +18,10 @@ const statusAliases = {
   "in progress": "running",
   "postponed / cancelled": "postponed_cancelled",
   "postponed/cancelled": "postponed_cancelled",
-  "cancelled": "postponed_cancelled",
-  "canceled": "postponed_cancelled",
+  cancelled: "postponed_cancelled",
+  canceled: "postponed_cancelled",
   "not accepted": "not_accepted",
-  "rejected": "not_accepted",
+  rejected: "not_accepted",
   "phase 1": "phase_1",
   "phase i": "phase_1",
   "phase 2": "phase_2",
@@ -69,17 +70,13 @@ function installCsvImportStyles() {
   document.head.appendChild(style);
 }
 
-function csvEscape(value) { return `"${String(value ?? "").replaceAll('"', '""')}"`; }
 function downloadTemplate() {
   const example = ["GWS-2025-001", "GWS-SENSE", "running", "Environment & Natural Resources", "HU", "2025", "2027", "5277009.87", "120000", "2025", "Total budget is counted once; annual_amount_eur is only for the selected year"];
-  const csv = `${templateHeaders.map(csvEscape).join(",")}\n${example.map(csvEscape).join(",")}\n`;
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "financial_projects_template.csv";
-  link.click();
-  URL.revokeObjectURL(url);
+  const worksheet = XLSX.utils.aoa_to_sheet([templateHeaders, example]);
+  worksheet["!cols"] = templateHeaders.map((header) => ({ wch: Math.max(16, header.length + 3) }));
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Financial Projects");
+  XLSX.writeFile(workbook, "financial_projects_template.xlsx");
 }
 
 function detectDelimiter(text) {
@@ -114,7 +111,23 @@ function parseCsv(text) {
   }
   row.push(cell);
   if (row.some((value) => String(value).trim() !== "")) rows.push(row);
-  rows.delimiter = delimiter;
+  rows.sourceType = delimiter === "\t" ? "TSV" : "CSV";
+  return rows;
+}
+
+function parseExcel(buffer) {
+  const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
+  const firstSheetName = workbook.SheetNames[0];
+  if (!firstSheetName) {
+    const empty = [];
+    empty.sourceType = "Excel";
+    return empty;
+  }
+  const sheet = workbook.Sheets[firstSheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false })
+    .filter((row) => row.some((value) => String(value).trim() !== ""));
+  rows.sourceType = "Excel";
+  rows.sheetName = firstSheetName;
   return rows;
 }
 
@@ -181,12 +194,11 @@ function buildRecord(headers, line) {
   return record;
 }
 
-function validateCsv(text) {
-  const parsed = parseCsv(text);
+function validateRows(parsed) {
   const errors = [];
   const rows = [];
   const seenCodes = new Set();
-  if (parsed.length < 1) return { rows, errors: ["The file is empty."], totalRows: 0, mappings: [] };
+  if (parsed.length < 1) return { rows, errors: ["The file is empty."], totalRows: 0, mappings: [], sourceType: parsed.sourceType || "File" };
 
   const headers = parsed[0].map((header) => ({ original: String(header || "").trim(), canonical: canonicalHeader(header) }));
   const canonicalHeaders = headers.map((header) => header.canonical);
@@ -238,8 +250,11 @@ function validateCsv(text) {
     });
   });
   if (!rows.length && !errors.length) errors.push("No data rows found. Add projects under the header row.");
-  return { rows, errors, totalRows: Math.max(parsed.length - 1, 0), mappings, delimiter: parsed.delimiter };
+  return { rows, errors, totalRows: Math.max(parsed.length - 1, 0), mappings, sourceType: parsed.sourceType || "File", sheetName: parsed.sheetName || "" };
 }
+
+function validateCsv(text) { return validateRows(parseCsv(text)); }
+function validateExcel(buffer) { return validateRows(parseExcel(buffer)); }
 function escapeHtml(value) { return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;"); }
 function previewTable(rows) {
   const sample = rows.slice(0, 10);
@@ -268,8 +283,9 @@ async function importRows(rows, messageBox, confirmButton) {
 function showPreview(result) {
   const backdrop = document.createElement("div");
   const mappingHtml = result.mappings?.length ? `<div class="csv-mapping-list"><strong>Detected columns</strong>${result.mappings.slice(0, 12).map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>` : "";
+  const sourceInfo = result.sourceType === "Excel" && result.sheetName ? `Excel sheet: ${escapeHtml(result.sheetName)}` : result.sourceType || "File";
   backdrop.className = "csv-preview-backdrop";
-  backdrop.innerHTML = `<section class="csv-preview-modal"><h3>CSV import preview</h3><p class="financial-empty">Smart import accepts different column names and comma, semicolon, or tab separated files. Missing project_code is auto-generated from project name and year.</p><div class="csv-preview-kpis"><div><strong>${result.totalRows}</strong><span>Total rows in file</span></div><div><strong>${result.rows.length}</strong><span>Valid rows ready to import</span></div><div><strong>${result.errors.length}</strong><span>Errors</span></div></div>${mappingHtml}${result.errors.length ? `<div class="csv-error-list">${result.errors.slice(0, 15).map((error) => `<span>${escapeHtml(error)}</span>`).join("")}${result.errors.length > 15 ? `<span>And ${result.errors.length - 15} more errors.</span>` : ""}</div>` : ""}${previewTable(result.rows)}<div class="csv-import-message"></div><div class="csv-preview-actions"><button type="button" class="csv-cancel-import">Cancel</button><button type="button" class="csv-confirm-import" ${result.errors.length || !result.rows.length ? "disabled" : ""}>Confirm Import</button></div></section>`;
+  backdrop.innerHTML = `<section class="csv-preview-modal"><h3>Financial import preview</h3><p class="financial-empty">${sourceInfo}. Smart import accepts Excel, CSV, semicolon CSV, and tab-separated files. Missing project_code is auto-generated from project name and year.</p><div class="csv-preview-kpis"><div><strong>${result.totalRows}</strong><span>Total rows in file</span></div><div><strong>${result.rows.length}</strong><span>Valid rows ready to import</span></div><div><strong>${result.errors.length}</strong><span>Errors</span></div></div>${mappingHtml}${result.errors.length ? `<div class="csv-error-list">${result.errors.slice(0, 15).map((error) => `<span>${escapeHtml(error)}</span>`).join("")}${result.errors.length > 15 ? `<span>And ${result.errors.length - 15} more errors.</span>` : ""}</div>` : ""}${previewTable(result.rows)}<div class="csv-import-message"></div><div class="csv-preview-actions"><button type="button" class="csv-cancel-import">Cancel</button><button type="button" class="csv-confirm-import" ${result.errors.length || !result.rows.length ? "disabled" : ""}>Confirm Import</button></div></section>`;
   document.body.appendChild(backdrop);
   backdrop.querySelector(".csv-cancel-import")?.addEventListener("click", () => backdrop.remove());
   backdrop.addEventListener("click", (event) => { if (event.target === backdrop) backdrop.remove(); });
@@ -278,14 +294,35 @@ function showPreview(result) {
     try { await importRows(result.rows, messageBox, event.currentTarget); } catch (error) { messageBox.className = "auth-error"; messageBox.textContent = `Import failed: ${error.message}. Make sure the latest financial SQL migrations have been run in Supabase.`; event.currentTarget.disabled = false; event.currentTarget.textContent = "Confirm Import"; }
   });
 }
-function handleFileSelection(event) { const file = event.target.files?.[0]; event.target.value = ""; if (!file) return; const reader = new FileReader(); reader.onload = () => showPreview(validateCsv(String(reader.result || ""))); reader.onerror = () => showPreview({ rows: [], errors: ["Could not read the selected file."], totalRows: 0, mappings: [] }); reader.readAsText(file); }
+
+function isExcelFile(file) {
+  return /\.(xlsx|xls)$/i.test(file.name || "") || String(file.type || "").includes("spreadsheet") || String(file.type || "").includes("excel");
+}
+
+function handleFileSelection(event) {
+  const file = event.target.files?.[0];
+  event.target.value = "";
+  if (!file) return;
+  const reader = new FileReader();
+  const excel = isExcelFile(file);
+  reader.onload = () => {
+    try {
+      showPreview(excel ? validateExcel(reader.result) : validateCsv(String(reader.result || "")));
+    } catch (error) {
+      showPreview({ rows: [], errors: [`Could not read the selected ${excel ? "Excel" : "CSV"} file: ${error.message}`], totalRows: 0, mappings: [], sourceType: excel ? "Excel" : "CSV" });
+    }
+  };
+  reader.onerror = () => showPreview({ rows: [], errors: ["Could not read the selected file."], totalRows: 0, mappings: [], sourceType: excel ? "Excel" : "CSV" });
+  if (excel) reader.readAsArrayBuffer(file); else reader.readAsText(file);
+}
+
 function ensureCsvButtons() {
   if (!document.body.classList.contains("external-financial-view")) return;
   const actions = document.querySelector(".financial-actions");
   if (!actions || actions.querySelector(".financial-template")) return;
-  const templateButton = document.createElement("button"); templateButton.type = "button"; templateButton.className = "financial-template"; templateButton.textContent = "Download Template"; templateButton.addEventListener("click", downloadTemplate);
-  const importButton = document.createElement("button"); importButton.type = "button"; importButton.className = "financial-import"; importButton.textContent = "Import CSV";
-  const input = document.createElement("input"); input.type = "file"; input.accept = ".csv,.txt,.tsv,text/csv,text/tab-separated-values"; input.hidden = true; input.addEventListener("change", handleFileSelection); importButton.addEventListener("click", () => input.click());
+  const templateButton = document.createElement("button"); templateButton.type = "button"; templateButton.className = "financial-template"; templateButton.textContent = "Download Excel Template"; templateButton.addEventListener("click", downloadTemplate);
+  const importButton = document.createElement("button"); importButton.type = "button"; importButton.className = "financial-import"; importButton.textContent = "Import Excel / CSV";
+  const input = document.createElement("input"); input.type = "file"; input.accept = ".xlsx,.xls,.csv,.txt,.tsv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,text/tab-separated-values"; input.hidden = true; input.addEventListener("change", handleFileSelection); importButton.addEventListener("click", () => input.click());
   actions.prepend(input); actions.prepend(importButton); actions.prepend(templateButton);
 }
 function startFinancialCsvImportEnhancer() { installCsvImportStyles(); ensureCsvButtons(); const observer = new MutationObserver(() => ensureCsvButtons()); observer.observe(document.getElementById("root") || document.body, { childList: true, subtree: true }); }
