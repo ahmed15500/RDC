@@ -1,9 +1,9 @@
 function installGenderIntegrationStyles() {
   if (document.getElementById("gender-activity-integration-style")) return;
-
   const style = document.createElement("style");
   style.id = "gender-activity-integration-style";
   style.textContent = `
+    .gender-source-marker { display: none !important; }
     .gender-entry-intro {
       display: grid;
       gap: 10px;
@@ -12,28 +12,9 @@ function installGenderIntegrationStyles() {
       border-radius: 16px;
       background: #f8fafc;
     }
-
-    .gender-entry-intro strong {
-      color: #242b78;
-      font-size: 0.94rem;
-      font-weight: 950;
-    }
-
-    .gender-entry-intro p {
-      margin: 0;
-      color: #64748b;
-      font-size: 0.84rem;
-      font-weight: 720;
-      line-height: 1.5;
-    }
-
-    .gender-entry-question {
-      display: grid;
-      gap: 7px;
-      color: #334155;
-      font-weight: 850;
-    }
-
+    .gender-entry-intro strong { color: #242b78; font-size: .94rem; font-weight: 950; }
+    .gender-entry-intro p { margin: 0; color: #64748b; font-size: .84rem; font-weight: 720; line-height: 1.5; }
+    .gender-entry-question { display: grid; gap: 7px; color: #334155; font-weight: 850; }
     .gender-entry-question select,
     .gender-detail-field input,
     .gender-detail-field select,
@@ -42,33 +23,27 @@ function installGenderIntegrationStyles() {
       border-color: #d8dee8 !important;
       background: #fff !important;
     }
-
-    .gender-detail-field,
-    .gender-detail-note {
-      transition: opacity 160ms ease;
-    }
-
-    .gender-detail-hidden {
-      display: none !important;
-    }
-
+    .gender-detail-hidden { display: none !important; }
     .gender-context-note {
       display: block;
       margin-top: 5px;
       color: #64748b;
-      font-size: 0.76rem;
+      font-size: .76rem;
       font-weight: 720;
       line-height: 1.4;
     }
-
-    .gender-save-status {
-      display: block;
-      color: #64748b;
-      font-size: 0.78rem;
-      font-weight: 800;
-    }
+    .gender-save-status { display: block; color: #64748b; font-size: .78rem; font-weight: 800; }
   `;
   document.head.appendChild(style);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function number(value) {
@@ -81,17 +56,15 @@ function findSection(form, titleStart) {
   );
 }
 
-function findLabelByText(section, textStart) {
+function findLabel(section, textStart) {
   return [...(section?.querySelectorAll("label") || [])].find((label) =>
-    label.childNodes[0]?.textContent?.trim()?.toLowerCase().startsWith(textStart.toLowerCase())
-      || label.textContent.trim().toLowerCase().startsWith(textStart.toLowerCase()),
+    label.textContent.trim().toLowerCase().startsWith(textStart.toLowerCase()),
   );
 }
 
-function readExistingValues(form) {
-  const section = form.querySelector(".gender-equality-section");
+function readValues(form, sourceSection) {
   const value = (name, fallback = "") =>
-    section?.querySelector(`[data-gender-field="${name}"]`)?.value
+    sourceSection?.querySelector(`[data-gender-field="${name}"]`)?.value
       || form.querySelector(`.gender-entry-integrated [data-gender-field="${name}"]`)?.value
       || fallback;
 
@@ -105,8 +78,18 @@ function readExistingValues(form) {
   };
 }
 
-function removeStandaloneGenderSection(form) {
-  form.querySelectorAll(".gender-equality-section").forEach((section) => section.remove());
+function ensureSourceMarker(form, sourceSection) {
+  let marker = sourceSection;
+  if (!marker) {
+    marker = document.createElement("fieldset");
+    marker.className = "gender-equality-section gender-source-marker";
+    form.appendChild(marker);
+  }
+  marker.innerHTML = "";
+  marker.classList.add("gender-source-marker");
+  marker.dataset.simpleGenderApplied = "true";
+  marker.dataset.genderIntegratedMarker = "true";
+  return marker;
 }
 
 function createGeneralQuestion(values) {
@@ -163,23 +146,12 @@ function createNoteField(value) {
   return element;
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
 function integrateGenderFields(form) {
-  const standalone = form.querySelector(".gender-equality-section");
-  const alreadyIntegrated = form.querySelector(".gender-entry-intro");
-  if (!standalone && alreadyIntegrated) return;
+  if (form.querySelector(".gender-entry-intro")) return;
 
-  const values = readExistingValues(form);
-  form.querySelectorAll(".gender-entry-integrated").forEach((element) => element.remove());
-  removeStandaloneGenderSection(form);
+  const sourceSection = form.querySelector(".gender-equality-section");
+  const values = readValues(form, sourceSection);
+  ensureSourceMarker(form, sourceSection);
 
   const generalSection = findSection(form, "A. General Information");
   const quantitativeSection = findSection(form, "B. Quantitative Impact Data");
@@ -187,11 +159,10 @@ function integrateGenderFields(form) {
   const generalGrid = generalSection?.querySelector(".form-grid");
   const quantitativeGrid = quantitativeSection?.querySelector(".form-grid");
   const qualitativeGrid = qualitativeSection?.querySelector(".form-grid");
-
   if (!generalGrid || !quantitativeGrid || !qualitativeGrid) return;
 
   const generalQuestion = createGeneralQuestion(values);
-  const targetGroupLabel = findLabelByText(generalSection, "Target group");
+  const targetGroupLabel = findLabel(generalSection, "Target group");
   if (targetGroupLabel) targetGroupLabel.after(generalQuestion);
   else generalGrid.appendChild(generalQuestion);
 
@@ -231,27 +202,24 @@ function integrateGenderFields(form) {
   }
 
   const detailElements = [femaleField, maleField, leadershipField, noteField];
-
-  function syncVisibilityAndValues() {
+  function sync() {
     const relevant = ["low", "moderate", "high"].includes(includedSelect.value);
     detailElements.forEach((element) => element.classList.toggle("gender-detail-hidden", !relevant));
     hiddenLevel.value = includedSelect.value;
-
     const includedText = includedSelect.options[includedSelect.selectedIndex]?.textContent || "";
     const leadershipText = leadershipSelect.options[leadershipSelect.selectedIndex]?.textContent || "";
     hiddenActions.value = relevant ? `${includedText}; ${leadershipText}` : includedText;
   }
 
-  includedSelect.addEventListener("change", syncVisibilityAndValues);
-  leadershipSelect.addEventListener("change", syncVisibilityAndValues);
+  includedSelect.addEventListener("change", sync);
+  leadershipSelect.addEventListener("change", sync);
   femaleInput.addEventListener("input", () => {
     if (number(femaleInput.value) > 0 && ["not_assessed", "not_applicable"].includes(includedSelect.value)) {
       includedSelect.value = "moderate";
     }
-    syncVisibilityAndValues();
+    sync();
   });
-
-  syncVisibilityAndValues();
+  sync();
 }
 
 function applyGenderIntegration() {
@@ -261,7 +229,6 @@ function applyGenderIntegration() {
 function startGenderActivityIntegration() {
   installGenderIntegrationStyles();
   applyGenderIntegration();
-
   const observer = new MutationObserver(() => applyGenderIntegration());
   observer.observe(document.getElementById("root") || document.body, { childList: true, subtree: true });
 }
