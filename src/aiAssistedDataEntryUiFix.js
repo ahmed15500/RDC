@@ -2,6 +2,7 @@ import { supabase } from "./lib/supabaseClient";
 
 let projectNamesPromise = null;
 let enhanceTimer = null;
+let promptRefreshTimer = null;
 
 function installStyles() {
   if (document.getElementById("ai-assisted-entry-ui-fix-style")) return;
@@ -38,7 +39,8 @@ function installStyles() {
       display: none !important;
     }
 
-    .ai-project-choice-help {
+    .ai-project-choice-help,
+    .ai-prompt-auto-help {
       display: block;
       margin-top: 5px;
       color: #64748b;
@@ -88,6 +90,52 @@ async function loadProjectNames(force = false) {
   })();
 
   return projectNamesPromise;
+}
+
+function refreshGeneratedPrompt(panel, force = false) {
+  const promptArea = panel.querySelector(".ai-generated-prompt");
+  const generateButton = panel.querySelector(".ai-generate-prompt");
+  if (!promptArea || !generateButton) return;
+
+  if (force || !promptArea.value.trim()) {
+    generateButton.click();
+  }
+}
+
+function schedulePromptRefresh(panel) {
+  if (promptRefreshTimer) window.clearTimeout(promptRefreshTimer);
+  promptRefreshTimer = window.setTimeout(() => {
+    promptRefreshTimer = null;
+    refreshGeneratedPrompt(panel, true);
+  }, 180);
+}
+
+function enhancePromptArea(panel) {
+  const promptArea = panel.querySelector(".ai-generated-prompt");
+  if (!promptArea || promptArea.dataset.autoPromptEnhanced === "true") return;
+
+  promptArea.dataset.autoPromptEnhanced = "true";
+  const label = promptArea.closest("label");
+  if (label) {
+    const firstTextNode = [...label.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
+    if (firstTextNode) firstTextNode.textContent = "Generated English prompt — created automatically";
+
+    if (!label.querySelector(".ai-prompt-auto-help")) {
+      const help = document.createElement("small");
+      help.className = "ai-prompt-auto-help";
+      help.textContent = "The prompt updates automatically when you choose the source type or change the project name.";
+      label.appendChild(help);
+    }
+  }
+
+  const projectInput = panel.querySelector(".ai-project-name");
+  const sourceType = panel.querySelector(".ai-source-type");
+
+  projectInput?.addEventListener("input", () => schedulePromptRefresh(panel));
+  projectInput?.addEventListener("change", () => schedulePromptRefresh(panel));
+  sourceType?.addEventListener("change", () => schedulePromptRefresh(panel));
+
+  window.setTimeout(() => refreshGeneratedPrompt(panel, false), 50);
 }
 
 async function enhanceProjectInput(panel) {
@@ -154,11 +202,16 @@ function enhancePanel(panel) {
 
     if (opening) {
       enhanceProjectInput(panel).catch(() => null);
-      window.setTimeout(() => panel.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+      enhancePromptArea(panel);
+      window.setTimeout(() => {
+        refreshGeneratedPrompt(panel, false);
+        panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
     }
   });
 
   enhanceProjectInput(panel).catch(() => null);
+  enhancePromptArea(panel);
 }
 
 function applyEnhancements() {
