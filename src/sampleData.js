@@ -6,12 +6,12 @@ export const VILLAGES = [
   "Ali Kamel Metwally",
   "El-Tahaweya",
   "Abu Shaier",
+  "Abu Shousha",
   "Karama",
   "El-Dahhar",
   "Maher",
   "Nabih",
   "Kamal Nakhla",
-  "Salem Allam",
   "Multiple Villages",
   "Other",
 ];
@@ -57,7 +57,7 @@ const records = [
   ["Women Enterprise Circles", "Food processing and microenterprise workshop", "Women Empowerment", ["Basateen Barakat"], "2026 Q1", "Women", ["Society", "Economy"], [1, 5, 8, 10], [90, 240, 54, 90, 48, 8, 12, 0, 0, 3, 12, 2, 6, 0, 0, 0, 0, 0, 46000, 14, 310], "Women developed production, pricing, and sales skills for local food products.", "Participants formed two informal production groups.", "Packaging and market access remain scaling barriers.", "Connect the groups to campus and community sales channels."],
   ["Summer School for Sustainability", "Children climate learning camp", "Summer Schools", ["Kamal Nakhla"], "2026 summer", "Children / Students", ["Culture", "Society", "Ecology"], [4, 11, 13], [160, 410, 88, 72, 0, 40, 160, 0, 2, 10, 16, 2, 8, 0, 25, 12, 5, 75, 0, 0, 0], "Students connected school learning with waste, water, art, and village life.", "Teachers adopted activity-based climate learning exercises.", "The program needs more reusable Arabic teaching kits.", "Create a trainer-of-trainers model for school staff."],
   ["Arts for Climate Caravan", "Community mural and storytelling day", "Arts for Climate", ["Karama", "Nabih"], "2026-03", "Youth", ["Culture", "Ecology", "Society"], [4, 11, 13, 17], [130, 360, 70, 58, 0, 92, 55, 0, 1, 6, 20, 2, 2, 0, 60, 28, 0, 20, 0, 0, 0], "Youth used art and storytelling to communicate climate action in public spaces.", "The mural became a visible community reminder of sorting and water conservation.", "Outdoor events are sensitive to weather and material logistics.", "Develop a village arts toolkit and traveling exhibition."],
-  ["Farmer Soil Health Support", "Compost use and crop advisory visit", "Farmer Support", ["Maher", "Salem Allam"], "2026 Q2", "Farmers", ["Ecology", "Economy"], [2, 8, 12, 13], [115, 300, 65, 24, 0, 18, 5, 115, 0, 0, 10, 1, 4, 0, 0, 0, 220, 210, 52000, 8, 0], "Farmers tested compost application and basic soil-improvement practices.", "Early adopters reported reduced spending on some soil inputs.", "More soil testing is needed for crop-specific advice.", "Set up seasonal farmer field schools."],
+  ["Farmer Soil Health Support", "Compost use and crop advisory visit", "Farmer Support", ["Maher", "Ali Kamel Metwally"], "2026 Q2", "Farmers", ["Ecology", "Economy"], [2, 8, 12, 13], [115, 300, 65, 24, 0, 18, 5, 115, 0, 0, 10, 1, 4, 0, 0, 0, 220, 210, 52000, 8, 0], "Farmers tested compost application and basic soil-improvement practices.", "Early adopters reported reduced spending on some soil inputs.", "More soil testing is needed for crop-specific advice.", "Set up seasonal farmer field schools."],
   ["Football Academy and Life Skills", "Youth sports and leadership sessions", "Football Academy", ["Abu Shaier"], "2026 Q1-Q2", "Youth", ["Society", "Culture"], [3, 4, 10, 11], [210, 500, 100, 68, 0, 210, 35, 0, 1, 4, 22, 4, 10, 0, 0, 0, 0, 0, 0, 2, 0], "Football sessions created a regular safe space for teamwork and life skills.", "Parents reported better attendance and social discipline among youth.", "Girls' participation requires more family outreach.", "Create mixed leadership workshops with sport coaches."],
   ["Community Baseline Mapping", "Village household and needs survey", "Research / Data Collection", ["Galfina 3", "El-Dahhar"], "2026-01", "Community members", ["Society", "Economy", "Ecology", "Culture"], [1, 3, 4, 6, 11, 17], [340, 1020, 210, 176, 0, 88, 64, 45, 3, 12, 28, 4, 3, 0, 0, 0, 0, 0, 0, 0, 0], "RDC created a baseline for planning village-specific interventions.", "Local coordinators improved data ownership and trust.", "Paper forms slowed validation and aggregation.", "Use this dashboard for digital submissions and faster reporting."],
 ];
