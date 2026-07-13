@@ -16,7 +16,7 @@ const s=document.createElement("style");s.id="rdc-village-map-css";s.textContent
 .village-map-shape:hover,.village-map-shape:focus,.village-map-shape.is-active{filter:drop-shadow(0 5px 7px #0f172a55);transform:scale(1.012);outline:none}
 .reference-shape{stroke-dasharray:6 4}.canal-shape{pointer-events:none;opacity:.9;stroke:#2474c6;stroke-width:2}
 .village-map-label{pointer-events:none;font-family:Inter,system-ui;font-weight:900;paint-order:stroke;stroke:#ffffff80;stroke-width:1.2px}
-.rdc-map-north{font:950 18px Inter,system-ui;fill:#172033}.rdc-map-coords,.rdc-map-frame svg g text{font-family:Inter,system-ui;font-weight:800;fill:#172033}
+.rdc-map-north{font:950 18px Inter,system-ui;fill:#172033}.rdc-map-coords{font-family:Inter,system-ui;font-weight:800;fill:#172033}.rdc-map-frame svg g text{font-family:Inter,system-ui;font-weight:800}
 .rdc-map-side{display:grid;align-content:start;gap:12px;padding:18px;border-left:1px solid #e8ebf0;background:#f8fafccc}
 .rdc-map-side h3{margin:0;color:#242b78}.rdc-map-facts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .rdc-map-fact,.rdc-map-note{padding:11px;border:1px solid #e2e6ec;border-radius:13px;background:#fff}
